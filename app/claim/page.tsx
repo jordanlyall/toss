@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
-import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+import { usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { usePublicClient } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { encodeFunctionData } from "viem";
@@ -35,8 +34,12 @@ function shorten(addr: string): string {
 
 export default function ClaimPage() {
   const { ready, authenticated, login } = usePrivy();
-  const { client: smartClient } = useSmartWallets();
+  const { wallets } = useWallets();
+  const { sendTransaction } = useSendTransaction();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
+
+  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
+  const address = embeddedWallet?.address ?? wallets[0]?.address;
 
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [fragmentRead, setFragmentRead] = useState(false);
@@ -79,17 +82,21 @@ export default function ClaimPage() {
   const claimable = !!escrow && !expired && !settled;
 
   async function handleClaim() {
-    if (!smartClient || !publicClient || !parsed) return;
+    if (!publicClient || !parsed) return;
     setStatus({ kind: "claiming" });
     try {
-      const hash = await smartClient.sendTransaction({
-        to: ESCROW_ADDRESS,
-        data: encodeFunctionData({
-          abi: ESCROW_ABI,
-          functionName: "claim",
-          args: [parsed.id, parsed.secret],
-        }),
-      });
+      const { hash } = await sendTransaction(
+        {
+          to: ESCROW_ADDRESS,
+          data: encodeFunctionData({
+            abi: ESCROW_ABI,
+            functionName: "claim",
+            args: [parsed.id, parsed.secret],
+          }),
+          chainId: baseSepolia.id,
+        },
+        { sponsor: true },
+      );
       await publicClient.waitForTransactionReceipt({ hash });
       setStatus({ kind: "claimed", txHash: hash });
     } catch (err: any) {
@@ -206,9 +213,9 @@ export default function ClaimPage() {
             >
               Sign in to claim
             </button>
-          ) : !smartClient ? (
+          ) : !address ? (
             <div className="text-sm text-neutral-400 text-center">
-              Preparing smart wallet...
+              Preparing wallet...
             </div>
           ) : (
             <button
