@@ -8,7 +8,6 @@ typechain-types/
 .env
 *.log
 .DS_Store
-lib/deployed.json
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 .vercel
