@@ -1,6 +1,7 @@
 "use client";
 
 import { PrivyProvider } from "@privy-io/react-auth";
+import { SmartWalletsProvider } from "@privy-io/react-auth/smart-wallets";
 import { WagmiProvider } from "@privy-io/wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { baseSepolia } from "wagmi/chains";
@@ -45,9 +46,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig}>{children}</WagmiProvider>
-      </QueryClientProvider>
+      <SmartWalletsProvider>
+        <QueryClientProvider client={queryClient}>
+          <WagmiProvider config={wagmiConfig}>{children}</WagmiProvider>
+        </QueryClientProvider>
+      </SmartWalletsProvider>
     </PrivyProvider>
   );
 }

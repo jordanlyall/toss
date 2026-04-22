@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
+import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { usePublicClient } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { decodeEventLog, encodeFunctionData, type Address } from "viem";
@@ -42,35 +43,26 @@ const REPO_URL = "https://github.com/jordanlyall/toss";
 
 export default function Landing() {
   const { ready, authenticated, login } = usePrivy();
-  const { wallets } = useWallets();
-  const { sendTransaction } = useSendTransaction();
+  const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-
-  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
-  const address = (embeddedWallet?.address ?? wallets[0]?.address) as
-    | Address
-    | undefined;
+  const address = smartClient?.account?.address as Address | undefined;
 
   const [state, setState] = useState<DemoState>({ step: "idle" });
 
   const deployed = !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS;
 
   async function runSend() {
-    if (!publicClient || !address) return;
+    if (!smartClient || !publicClient || !address) return;
     try {
       setState({ step: "minting" });
-      const { hash: mintHash } = await sendTransaction(
-        {
-          to: DEMO_NFT_ADDRESS,
-          data: encodeFunctionData({
-            abi: DEMO_NFT_ABI,
-            functionName: "mint",
-            args: [],
-          }),
-          chainId: baseSepolia.id,
-        },
-        { sponsor: true },
-      );
+      const mintHash = await smartClient.sendTransaction({
+        to: DEMO_NFT_ADDRESS,
+        data: encodeFunctionData({
+          abi: DEMO_NFT_ABI,
+          functionName: "mint",
+          args: [],
+        }),
+      });
       const mintReceipt = await publicClient.waitForTransactionReceipt({
         hash: mintHash,
       });
@@ -98,36 +90,28 @@ export default function Landing() {
 
       if (!approved) {
         setState({ step: "approving", tokenId });
-        const { hash: approveHash } = await sendTransaction(
-          {
-            to: DEMO_NFT_ADDRESS,
-            data: encodeFunctionData({
-              abi: DEMO_NFT_ABI,
-              functionName: "setApprovalForAll",
-              args: [ESCROW_ADDRESS, true],
-            }),
-            chainId: baseSepolia.id,
-          },
-          { sponsor: true },
-        );
+        const approveHash = await smartClient.sendTransaction({
+          to: DEMO_NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: DEMO_NFT_ABI,
+            functionName: "setApprovalForAll",
+            args: [ESCROW_ADDRESS, true],
+          }),
+        });
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
       }
 
       setState({ step: "depositing", tokenId });
       const secret = generateSecret();
       const secretHash = hashSecret(secret);
-      const { hash: depositHash } = await sendTransaction(
-        {
-          to: ESCROW_ADDRESS,
-          data: encodeFunctionData({
-            abi: ESCROW_ABI,
-            functionName: "deposit",
-            args: [DEMO_NFT_ADDRESS, tokenId, secretHash, defaultExpiry()],
-          }),
-          chainId: baseSepolia.id,
-        },
-        { sponsor: true },
-      );
+      const depositHash = await smartClient.sendTransaction({
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: ESCROW_ABI,
+          functionName: "deposit",
+          args: [DEMO_NFT_ADDRESS, tokenId, secretHash, defaultExpiry()],
+        }),
+      });
       const depositReceipt = await publicClient.waitForTransactionReceipt({
         hash: depositHash,
       });
@@ -162,6 +146,7 @@ export default function Landing() {
 
   async function runClaim() {
     if (
+      !smartClient ||
       !publicClient ||
       state.escrowId === undefined ||
       !state.secret
@@ -169,18 +154,14 @@ export default function Landing() {
       return;
     try {
       setState((s) => ({ ...s, step: "claiming" }));
-      const { hash } = await sendTransaction(
-        {
-          to: ESCROW_ADDRESS,
-          data: encodeFunctionData({
-            abi: ESCROW_ABI,
-            functionName: "claim",
-            args: [state.escrowId, state.secret],
-          }),
-          chainId: baseSepolia.id,
-        },
-        { sponsor: true },
-      );
+      const hash = await smartClient.sendTransaction({
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: ESCROW_ABI,
+          functionName: "claim",
+          args: [state.escrowId, state.secret],
+        }),
+      });
       await publicClient.waitForTransactionReceipt({ hash });
       setState((s) => ({ ...s, step: "claimed" }));
     } catch (err: any) {
@@ -263,14 +244,14 @@ export default function Landing() {
             onPrimary={
               !authenticated
                 ? () => login()
-                : deployed && address
+                : deployed && smartClient
                   ? runSend
                   : undefined
             }
             primaryLabel={
               !authenticated
                 ? "Sign in"
-                : !address
+                : !smartClient
                   ? "Preparing wallet..."
                   : state.step === "idle"
                     ? "Mint and send"
@@ -306,7 +287,7 @@ export default function Landing() {
             label={recipientLabel}
             state={state}
             side="recipient"
-            onPrimary={state.step === "sent" && address ? runClaim : undefined}
+            onPrimary={state.step === "sent" && smartClient ? runClaim : undefined}
             primaryLabel={
               state.step === "claimed"
                 ? "Claimed"
