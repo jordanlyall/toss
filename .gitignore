@@ -9,3 +9,5 @@ typechain-types/
 *.log
 .DS_Store
 lib/deployed.json
+tsconfig.tsbuildinfo
+*.tsbuildinfo
