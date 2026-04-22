@@ -7,7 +7,7 @@ import {
   useAccount,
   useConnect,
   usePublicClient,
-  useWalletClient,
+  useWriteContract,
 } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { decodeEventLog, type Address } from "viem";
@@ -52,7 +52,7 @@ export default function Landing() {
   const { address, isConnected } = useAccount();
   const { connectors, connectAsync } = useConnect();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const { data: walletClient } = useWalletClient({ chainId: baseSepolia.id });
+  const { writeContractAsync } = useWriteContract();
 
   const [state, setState] = useState<DemoState>({ step: "idle" });
 
@@ -66,10 +66,10 @@ export default function Landing() {
   const deployed = !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS;
 
   async function runSend() {
-    if (!walletClient || !publicClient || !address) return;
+    if (!publicClient || !address) return;
     try {
       setState({ step: "minting" });
-      const mintHash = await walletClient.writeContract({
+      const mintHash = await writeContractAsync({
         address: DEMO_NFT_ADDRESS,
         abi: DEMO_NFT_ABI,
         functionName: "mint",
@@ -82,7 +82,8 @@ export default function Landing() {
       const transferTopic =
         "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
       for (const log of mintReceipt.logs) {
-        if (log.address.toLowerCase() !== DEMO_NFT_ADDRESS.toLowerCase()) continue;
+        if (log.address.toLowerCase() !== DEMO_NFT_ADDRESS.toLowerCase())
+          continue;
         if (log.topics[0] !== transferTopic) continue;
         if (log.topics.length < 4) continue;
         tokenId = BigInt(log.topics[3]!);
@@ -99,7 +100,7 @@ export default function Landing() {
 
       if (!approved) {
         setState({ step: "approving", tokenId });
-        const approveHash = await walletClient.writeContract({
+        const approveHash = await writeContractAsync({
           address: DEMO_NFT_ADDRESS,
           abi: DEMO_NFT_ABI,
           functionName: "setApprovalForAll",
@@ -111,7 +112,7 @@ export default function Landing() {
       setState({ step: "depositing", tokenId });
       const secret = generateSecret();
       const secretHash = hashSecret(secret);
-      const depositHash = await walletClient.writeContract({
+      const depositHash = await writeContractAsync({
         address: ESCROW_ADDRESS,
         abi: ESCROW_ABI,
         functionName: "deposit",
@@ -122,7 +123,8 @@ export default function Landing() {
       });
       let escrowId: bigint | null = null;
       for (const log of depositReceipt.logs) {
-        if (log.address.toLowerCase() !== ESCROW_ADDRESS.toLowerCase()) continue;
+        if (log.address.toLowerCase() !== ESCROW_ADDRESS.toLowerCase())
+          continue;
         try {
           const decoded = decodeEventLog({
             abi: ESCROW_ABI,
@@ -138,7 +140,9 @@ export default function Landing() {
       if (escrowId === null) throw new Error("Deposited event not found");
 
       const origin =
-        typeof window !== "undefined" ? window.location.origin : "https://toss.app";
+        typeof window !== "undefined"
+          ? window.location.origin
+          : "https://toss.app";
       const url = buildClaimUrl(origin, escrowId, secret);
       setState({ step: "sent", tokenId, escrowId, url, secret });
     } catch (err: any) {
@@ -147,10 +151,15 @@ export default function Landing() {
   }
 
   async function runClaim() {
-    if (!walletClient || !publicClient || state.escrowId === undefined || !state.secret) return;
+    if (
+      !publicClient ||
+      state.escrowId === undefined ||
+      !state.secret
+    )
+      return;
     try {
       setState((s) => ({ ...s, step: "claiming" }));
-      const hash = await walletClient.writeContract({
+      const hash = await writeContractAsync({
         address: ESCROW_ADDRESS,
         abi: ESCROW_ABI,
         functionName: "claim",
@@ -238,7 +247,7 @@ export default function Landing() {
             onPrimary={
               !authenticated
                 ? () => login()
-                : deployed && walletClient
+                : deployed
                   ? runSend
                   : undefined
             }
@@ -259,23 +268,27 @@ export default function Landing() {
               state.step === "depositing"
             }
             onReset={
-              state.step === "sent" || state.step === "claimed" || state.step === "error"
+              state.step === "sent" ||
+              state.step === "claimed" ||
+              state.step === "error"
                 ? () => setState({ step: "idle" })
                 : undefined
             }
             ready={ready && deployed}
           />
 
-          <Thread show={showBubble} url={state.url} claimed={state.step === "claimed"} />
+          <Thread
+            show={showBubble}
+            url={state.url}
+            claimed={state.step === "claimed"}
+          />
 
           <Phone
             role="Recipient"
             label={recipientLabel}
             state={state}
             side="recipient"
-            onPrimary={
-              state.step === "sent" && walletClient ? runClaim : undefined
-            }
+            onPrimary={state.step === "sent" ? runClaim : undefined}
             primaryLabel={
               state.step === "claimed"
                 ? "Claimed"
@@ -402,7 +415,10 @@ function Phone({
       </div>
       <div
         className="phone-frame w-[260px] h-[500px] flex flex-col"
-        style={{ transition: "transform 300ms", transform: isActive ? "translateY(-4px)" : "none" }}
+        style={{
+          transition: "transform 300ms",
+          transform: isActive ? "translateY(-4px)" : "none",
+        }}
       >
         <div className="h-8 flex items-center justify-center text-[10px] text-neutral-500 border-b border-neutral-900">
           {side === "sender" ? "Me" : "Unknown"}
@@ -416,7 +432,9 @@ function Phone({
               <div className="aspect-square w-full rounded-md bg-gradient-to-br from-blue-600/50 to-purple-600/40 mb-2" />
               <div className="text-xs text-neutral-300">Toss Demo</div>
               <div className="text-[10px] text-neutral-500 font-mono">
-                {state.tokenId !== undefined ? `#${state.tokenId.toString()}` : ""}
+                {state.tokenId !== undefined
+                  ? `#${state.tokenId.toString()}`
+                  : ""}
               </div>
             </div>
           ) : null}

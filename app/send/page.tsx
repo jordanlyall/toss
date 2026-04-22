@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useAccount, useBalance, useConnect, usePublicClient, useWalletClient } from "wagmi";
+import {
+  useAccount,
+  useBalance,
+  useConnect,
+  usePublicClient,
+  useWriteContract,
+} from "wagmi";
 import { formatEther, decodeEventLog, type Address } from "viem";
 import { baseSepolia } from "wagmi/chains";
 import Link from "next/link";
@@ -39,12 +45,11 @@ export default function SendPage() {
   const { connectors, connectAsync } = useConnect();
   const { data: balance } = useBalance({ address, chainId: baseSepolia.id });
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const { data: walletClient } = useWalletClient({ chainId: baseSepolia.id });
+  const { writeContractAsync } = useWriteContract();
 
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [ownedIds, setOwnedIds] = useState<bigint[]>([]);
 
-  // Auto-connect the first Privy wallet to wagmi so writes work.
   useEffect(() => {
     if (!authenticated || isConnected || wallets.length === 0) return;
     const connector = connectors[0];
@@ -52,18 +57,9 @@ export default function SendPage() {
     connectAsync({ connector }).catch(() => {});
   }, [authenticated, isConnected, wallets, connectors, connectAsync]);
 
-  // Refresh owned-NFT balance after mint/send.
   async function refreshOwned(addr: Address) {
     if (!publicClient || !DEMO_NFT_ADDRESS) return;
     try {
-      const bal = (await publicClient.readContract({
-        address: DEMO_NFT_ADDRESS,
-        abi: DEMO_NFT_ABI,
-        functionName: "balanceOf",
-        args: [addr],
-      })) as bigint;
-      // DemoNFT has no ERC-721 Enumerable. We keep any IDs we minted client-side
-      // and filter by current ownership.
       const filtered: bigint[] = [];
       for (const id of ownedIds) {
         try {
@@ -77,7 +73,6 @@ export default function SendPage() {
         } catch {}
       }
       setOwnedIds(filtered);
-      void bal;
     } catch {}
   }
 
@@ -87,28 +82,26 @@ export default function SendPage() {
   }, [address]);
 
   const canAct = useMemo(
-    () => isConnected && !!walletClient && !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS,
-    [isConnected, walletClient],
+    () => isConnected && !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS,
+    [isConnected],
   );
 
   async function handleMint() {
-    if (!walletClient || !publicClient || !address) return;
+    if (!publicClient || !address) return;
     setStatus({ kind: "minting" });
     try {
-      const hash = await walletClient.writeContract({
+      const hash = await writeContractAsync({
         address: DEMO_NFT_ADDRESS,
         abi: DEMO_NFT_ABI,
         functionName: "mint",
         args: [],
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      // Find Transfer(from=0x0, to=address) log to extract tokenId.
       let tokenId: bigint | null = null;
+      const transferTopic =
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
       for (const log of receipt.logs) {
         if (log.address.toLowerCase() !== DEMO_NFT_ADDRESS.toLowerCase()) continue;
-        // ERC-721 Transfer topic
-        const transferTopic =
-          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
         if (log.topics[0] !== transferTopic) continue;
         if (log.topics.length < 4) continue;
         tokenId = BigInt(log.topics[3]!);
@@ -118,12 +111,15 @@ export default function SendPage() {
       setOwnedIds((prev) => Array.from(new Set([...prev, tokenId!])));
       setStatus({ kind: "minted", tokenId });
     } catch (err: any) {
-      setStatus({ kind: "error", message: err?.shortMessage || err?.message || "Mint failed" });
+      setStatus({
+        kind: "error",
+        message: err?.shortMessage || err?.message || "Mint failed",
+      });
     }
   }
 
   async function handleSend(tokenId: bigint) {
-    if (!walletClient || !publicClient || !address) return;
+    if (!publicClient || !address) return;
     setStatus({ kind: "sending", tokenId, step: "Checking approval" });
     try {
       const approved = (await publicClient.readContract({
@@ -135,7 +131,7 @@ export default function SendPage() {
 
       if (!approved) {
         setStatus({ kind: "sending", tokenId, step: "Approving escrow" });
-        const approveHash = await walletClient.writeContract({
+        const approveHash = await writeContractAsync({
           address: DEMO_NFT_ADDRESS,
           abi: DEMO_NFT_ABI,
           functionName: "setApprovalForAll",
@@ -149,13 +145,15 @@ export default function SendPage() {
       const secretHash = hashSecret(secret);
       const expiresAt = defaultExpiry();
 
-      const depositHash = await walletClient.writeContract({
+      const depositHash = await writeContractAsync({
         address: ESCROW_ADDRESS,
         abi: ESCROW_ABI,
         functionName: "deposit",
         args: [DEMO_NFT_ADDRESS, tokenId, secretHash, expiresAt],
       });
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: depositHash });
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: depositHash,
+      });
 
       let escrowId: bigint | null = null;
       for (const log of receipt.logs) {
@@ -244,7 +242,9 @@ export default function SendPage() {
               <div className="text-right">
                 <div className="text-neutral-400">Balance</div>
                 <div className="font-mono">
-                  {balance ? `${Number(formatEther(balance.value)).toFixed(4)} ETH` : "..."}
+                  {balance
+                    ? `${Number(formatEther(balance.value)).toFixed(4)} ETH`
+                    : "..."}
                 </div>
               </div>
             </div>
@@ -272,7 +272,9 @@ export default function SendPage() {
                       key={id.toString()}
                       className="flex items-center justify-between rounded-lg border border-neutral-800 px-4 py-3"
                     >
-                      <div className="font-mono text-sm">Token #{id.toString()}</div>
+                      <div className="font-mono text-sm">
+                        Token #{id.toString()}
+                      </div>
                       <button
                         onClick={() => handleSend(id)}
                         disabled={!canAct || isSending}
@@ -290,8 +292,8 @@ export default function SendPage() {
           {status.kind === "sent" ? (
             <section className="rounded-lg border border-emerald-900 bg-emerald-950/30 p-4 space-y-3">
               <div className="text-sm text-emerald-200">
-                Ready to share. Token #{status.tokenId.toString()} is in escrow as #
-                {status.escrowId.toString()}.
+                Ready to share. Token #{status.tokenId.toString()} is in escrow
+                as #{status.escrowId.toString()}.
               </div>
               <input
                 readOnly

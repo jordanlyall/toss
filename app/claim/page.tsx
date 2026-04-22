@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useAccount, useConnect, usePublicClient, useWalletClient } from "wagmi";
+import {
+  useAccount,
+  useConnect,
+  usePublicClient,
+  useWriteContract,
+} from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import Link from "next/link";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
@@ -34,10 +39,10 @@ function shorten(addr: string): string {
 export default function ClaimPage() {
   const { ready, authenticated, login } = usePrivy();
   const { wallets } = useWallets();
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { connectors, connectAsync } = useConnect();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const { data: walletClient } = useWalletClient({ chainId: baseSepolia.id });
+  const { writeContractAsync } = useWriteContract();
 
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [fragmentRead, setFragmentRead] = useState(false);
@@ -72,7 +77,8 @@ export default function ClaimPage() {
         })) as EscrowData;
         if (!cancelled) setEscrow(data);
       } catch (err: any) {
-        if (!cancelled) setEscrowErr(err?.shortMessage || err?.message || "Lookup failed");
+        if (!cancelled)
+          setEscrowErr(err?.shortMessage || err?.message || "Lookup failed");
       }
     })();
     return () => {
@@ -86,10 +92,10 @@ export default function ClaimPage() {
   const claimable = !!escrow && !expired && !settled;
 
   async function handleClaim() {
-    if (!walletClient || !publicClient || !parsed) return;
+    if (!publicClient || !parsed) return;
     setStatus({ kind: "claiming" });
     try {
-      const hash = await walletClient.writeContract({
+      const hash = await writeContractAsync({
         address: ESCROW_ADDRESS,
         abi: ESCROW_ABI,
         functionName: "claim",
@@ -156,7 +162,11 @@ export default function ClaimPage() {
                 <Row
                   label="Status"
                   value={
-                    settled ? "Already claimed or revoked" : expired ? "Expired" : "Ready"
+                    settled
+                      ? "Already claimed or revoked"
+                      : expired
+                        ? "Expired"
+                        : "Ready"
                   }
                 />
                 {nftLink ? (
@@ -179,7 +189,9 @@ export default function ClaimPage() {
 
           {status.kind === "claimed" ? (
             <div className="rounded-lg border border-emerald-900 bg-emerald-950/30 p-5 space-y-3">
-              <div className="text-lg font-semibold text-emerald-100">You own it.</div>
+              <div className="text-lg font-semibold text-emerald-100">
+                You own it.
+              </div>
               <div className="text-sm text-emerald-200">
                 The NFT is in your wallet.
               </div>
@@ -208,7 +220,7 @@ export default function ClaimPage() {
           ) : (
             <button
               onClick={handleClaim}
-              disabled={!claimable || !walletClient || status.kind === "claiming"}
+              disabled={!claimable || status.kind === "claiming"}
               className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium"
             >
               {status.kind === "claiming"
