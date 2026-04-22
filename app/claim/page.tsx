@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import {
-  useAccount,
-  useConnect,
-  usePublicClient,
-  useWriteContract,
-} from "wagmi";
+import { usePrivy } from "@privy-io/react-auth";
+import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+import { usePublicClient } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
+import { encodeFunctionData } from "viem";
 import Link from "next/link";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { parseClaimFragment } from "@/lib/claim";
@@ -38,11 +35,8 @@ function shorten(addr: string): string {
 
 export default function ClaimPage() {
   const { ready, authenticated, login } = usePrivy();
-  const { wallets } = useWallets();
-  const { isConnected } = useAccount();
-  const { connectors, connectAsync } = useConnect();
+  const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const { writeContractAsync } = useWriteContract();
 
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [fragmentRead, setFragmentRead] = useState(false);
@@ -56,13 +50,6 @@ export default function ClaimPage() {
     setParsed(result);
     setFragmentRead(true);
   }, []);
-
-  useEffect(() => {
-    if (!authenticated || isConnected || wallets.length === 0) return;
-    const connector = connectors[0];
-    if (!connector) return;
-    connectAsync({ connector }).catch(() => {});
-  }, [authenticated, isConnected, wallets, connectors, connectAsync]);
 
   useEffect(() => {
     if (!parsed || !publicClient || !ESCROW_ADDRESS) return;
@@ -92,14 +79,16 @@ export default function ClaimPage() {
   const claimable = !!escrow && !expired && !settled;
 
   async function handleClaim() {
-    if (!publicClient || !parsed) return;
+    if (!smartClient || !publicClient || !parsed) return;
     setStatus({ kind: "claiming" });
     try {
-      const hash = await writeContractAsync({
-        address: ESCROW_ADDRESS,
-        abi: ESCROW_ABI,
-        functionName: "claim",
-        args: [parsed.id, parsed.secret],
+      const hash = await smartClient.sendTransaction({
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: ESCROW_ABI,
+          functionName: "claim",
+          args: [parsed.id, parsed.secret],
+        }),
       });
       await publicClient.waitForTransactionReceipt({ hash });
       setStatus({ kind: "claimed", txHash: hash });
@@ -193,7 +182,7 @@ export default function ClaimPage() {
                 You own it.
               </div>
               <div className="text-sm text-emerald-200">
-                The NFT is in your wallet.
+                The NFT is in your wallet. No gas paid.
               </div>
               <div className="flex gap-3 text-sm pt-1">
                 <a
@@ -217,6 +206,10 @@ export default function ClaimPage() {
             >
               Sign in to claim
             </button>
+          ) : !smartClient ? (
+            <div className="text-sm text-neutral-400 text-center">
+              Preparing smart wallet...
+            </div>
           ) : (
             <button
               onClick={handleClaim}

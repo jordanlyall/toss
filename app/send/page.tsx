@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
+import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+import { usePublicClient } from "wagmi";
 import {
-  useAccount,
-  useBalance,
-  useConnect,
-  usePublicClient,
-  useWriteContract,
-} from "wagmi";
-import { formatEther, decodeEventLog, type Address } from "viem";
+  encodeFunctionData,
+  decodeEventLog,
+  formatEther,
+  type Address,
+} from "viem";
 import { baseSepolia } from "wagmi/chains";
 import Link from "next/link";
 import {
@@ -40,70 +40,76 @@ function shorten(addr: string | undefined): string {
 
 export default function SendPage() {
   const { ready, authenticated, login, logout } = usePrivy();
-  const { wallets } = useWallets();
-  const { address, isConnected } = useAccount();
-  const { connectors, connectAsync } = useConnect();
-  const { data: balance } = useBalance({ address, chainId: baseSepolia.id });
+  const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const { writeContractAsync } = useWriteContract();
+
+  const address = smartClient?.account?.address as Address | undefined;
 
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [ownedIds, setOwnedIds] = useState<bigint[]>([]);
-
-  useEffect(() => {
-    if (!authenticated || isConnected || wallets.length === 0) return;
-    const connector = connectors[0];
-    if (!connector) return;
-    connectAsync({ connector }).catch(() => {});
-  }, [authenticated, isConnected, wallets, connectors, connectAsync]);
+  const [balance, setBalance] = useState<bigint | null>(null);
 
   async function refreshOwned(addr: Address) {
     if (!publicClient || !DEMO_NFT_ADDRESS) return;
+    const filtered: bigint[] = [];
+    for (const id of ownedIds) {
+      try {
+        const owner = (await publicClient.readContract({
+          address: DEMO_NFT_ADDRESS,
+          abi: DEMO_NFT_ABI,
+          functionName: "ownerOf",
+          args: [id],
+        })) as Address;
+        if (owner.toLowerCase() === addr.toLowerCase()) filtered.push(id);
+      } catch {}
+    }
+    setOwnedIds(filtered);
+  }
+
+  async function refreshBalance(addr: Address) {
+    if (!publicClient) return;
     try {
-      const filtered: bigint[] = [];
-      for (const id of ownedIds) {
-        try {
-          const owner = (await publicClient.readContract({
-            address: DEMO_NFT_ADDRESS,
-            abi: DEMO_NFT_ABI,
-            functionName: "ownerOf",
-            args: [id],
-          })) as Address;
-          if (owner.toLowerCase() === addr.toLowerCase()) filtered.push(id);
-        } catch {}
-      }
-      setOwnedIds(filtered);
+      const bal = await publicClient.getBalance({ address: addr });
+      setBalance(bal);
     } catch {}
   }
 
   useEffect(() => {
-    if (address) void refreshOwned(address);
+    if (!address) return;
+    void refreshOwned(address);
+    void refreshBalance(address);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
   const canAct = useMemo(
-    () => isConnected && !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS,
-    [isConnected],
+    () => !!smartClient && !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS,
+    [smartClient],
   );
 
   async function handleMint() {
-    if (!publicClient || !address) return;
+    if (!smartClient || !publicClient || !address) return;
     setStatus({ kind: "minting" });
     try {
-      const hash = await writeContractAsync({
-        address: DEMO_NFT_ADDRESS,
-        abi: DEMO_NFT_ABI,
-        functionName: "mint",
-        args: [],
+      const hash = await smartClient.sendTransaction({
+        to: DEMO_NFT_ADDRESS,
+        data: encodeFunctionData({
+          abi: DEMO_NFT_ABI,
+          functionName: "mint",
+          args: [],
+        }),
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       let tokenId: bigint | null = null;
       const transferTopic =
         "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
       for (const log of receipt.logs) {
-        if (log.address.toLowerCase() !== DEMO_NFT_ADDRESS.toLowerCase()) continue;
+        if (log.address.toLowerCase() !== DEMO_NFT_ADDRESS.toLowerCase())
+          continue;
         if (log.topics[0] !== transferTopic) continue;
         if (log.topics.length < 4) continue;
+        // Transfer(from, to, tokenId) — `to` is topic[2]
+        const to = ("0x" + log.topics[2]!.slice(-40)).toLowerCase();
+        if (to !== address.toLowerCase()) continue;
         tokenId = BigInt(log.topics[3]!);
         break;
       }
@@ -119,7 +125,7 @@ export default function SendPage() {
   }
 
   async function handleSend(tokenId: bigint) {
-    if (!publicClient || !address) return;
+    if (!smartClient || !publicClient || !address) return;
     setStatus({ kind: "sending", tokenId, step: "Checking approval" });
     try {
       const approved = (await publicClient.readContract({
@@ -131,11 +137,13 @@ export default function SendPage() {
 
       if (!approved) {
         setStatus({ kind: "sending", tokenId, step: "Approving escrow" });
-        const approveHash = await writeContractAsync({
-          address: DEMO_NFT_ADDRESS,
-          abi: DEMO_NFT_ABI,
-          functionName: "setApprovalForAll",
-          args: [ESCROW_ADDRESS, true],
+        const approveHash = await smartClient.sendTransaction({
+          to: DEMO_NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: DEMO_NFT_ABI,
+            functionName: "setApprovalForAll",
+            args: [ESCROW_ADDRESS, true],
+          }),
         });
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
       }
@@ -145,11 +153,13 @@ export default function SendPage() {
       const secretHash = hashSecret(secret);
       const expiresAt = defaultExpiry();
 
-      const depositHash = await writeContractAsync({
-        address: ESCROW_ADDRESS,
-        abi: ESCROW_ABI,
-        functionName: "deposit",
-        args: [DEMO_NFT_ADDRESS, tokenId, secretHash, expiresAt],
+      const depositHash = await smartClient.sendTransaction({
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: ESCROW_ABI,
+          functionName: "deposit",
+          args: [DEMO_NFT_ADDRESS, tokenId, secretHash, expiresAt],
+        }),
       });
       const receipt = await publicClient.waitForTransactionReceipt({
         hash: depositHash,
@@ -157,7 +167,8 @@ export default function SendPage() {
 
       let escrowId: bigint | null = null;
       for (const log of receipt.logs) {
-        if (log.address.toLowerCase() !== ESCROW_ADDRESS.toLowerCase()) continue;
+        if (log.address.toLowerCase() !== ESCROW_ADDRESS.toLowerCase())
+          continue;
         try {
           const decoded = decodeEventLog({
             abi: ESCROW_ABI,
@@ -216,7 +227,8 @@ export default function SendPage() {
 
       <h1 className="text-3xl font-semibold tracking-tight mb-2">Send an NFT</h1>
       <p className="text-neutral-400 mb-8">
-        Mint a demo token, then generate a claim link you can text to anyone.
+        Mint a demo token, then generate a claim link you can text to anyone. No
+        gas.
       </p>
 
       {!ESCROW_ADDRESS || !DEMO_NFT_ADDRESS ? (
@@ -231,19 +243,23 @@ export default function SendPage() {
         >
           Sign in to send
         </button>
+      ) : !smartClient ? (
+        <div className="text-sm text-neutral-400">
+          Preparing smart wallet...
+        </div>
       ) : (
         <div className="space-y-8">
           <section className="rounded-lg border border-neutral-800 p-4">
             <div className="flex items-center justify-between text-sm">
               <div>
-                <div className="text-neutral-400">Connected</div>
+                <div className="text-neutral-400">Smart wallet</div>
                 <div className="font-mono">{shorten(address)}</div>
               </div>
               <div className="text-right">
                 <div className="text-neutral-400">Balance</div>
                 <div className="font-mono">
-                  {balance
-                    ? `${Number(formatEther(balance.value)).toFixed(4)} ETH`
+                  {balance !== null
+                    ? `${Number(formatEther(balance)).toFixed(4)} ETH`
                     : "..."}
                 </div>
               </div>

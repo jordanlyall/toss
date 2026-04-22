@@ -1,16 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import {
-  useAccount,
-  useConnect,
-  usePublicClient,
-  useWriteContract,
-} from "wagmi";
+import { usePrivy } from "@privy-io/react-auth";
+import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+import { usePublicClient } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
-import { decodeEventLog, type Address } from "viem";
+import { decodeEventLog, encodeFunctionData, type Address } from "viem";
 import {
   DEMO_NFT_ABI,
   DEMO_NFT_ADDRESS,
@@ -26,7 +22,6 @@ import {
 
 type DemoStep =
   | "idle"
-  | "signing-in"
   | "minting"
   | "approving"
   | "depositing"
@@ -48,32 +43,25 @@ const REPO_URL = "https://github.com/jordanlyall/toss";
 
 export default function Landing() {
   const { ready, authenticated, login } = usePrivy();
-  const { wallets } = useWallets();
-  const { address, isConnected } = useAccount();
-  const { connectors, connectAsync } = useConnect();
+  const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const { writeContractAsync } = useWriteContract();
+  const address = smartClient?.account?.address as Address | undefined;
 
   const [state, setState] = useState<DemoState>({ step: "idle" });
-
-  useEffect(() => {
-    if (!authenticated || isConnected || wallets.length === 0) return;
-    const connector = connectors[0];
-    if (!connector) return;
-    connectAsync({ connector }).catch(() => {});
-  }, [authenticated, isConnected, wallets, connectors, connectAsync]);
 
   const deployed = !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS;
 
   async function runSend() {
-    if (!publicClient || !address) return;
+    if (!smartClient || !publicClient || !address) return;
     try {
       setState({ step: "minting" });
-      const mintHash = await writeContractAsync({
-        address: DEMO_NFT_ADDRESS,
-        abi: DEMO_NFT_ABI,
-        functionName: "mint",
-        args: [],
+      const mintHash = await smartClient.sendTransaction({
+        to: DEMO_NFT_ADDRESS,
+        data: encodeFunctionData({
+          abi: DEMO_NFT_ABI,
+          functionName: "mint",
+          args: [],
+        }),
       });
       const mintReceipt = await publicClient.waitForTransactionReceipt({
         hash: mintHash,
@@ -86,6 +74,8 @@ export default function Landing() {
           continue;
         if (log.topics[0] !== transferTopic) continue;
         if (log.topics.length < 4) continue;
+        const to = ("0x" + log.topics[2]!.slice(-40)).toLowerCase();
+        if (to !== address.toLowerCase()) continue;
         tokenId = BigInt(log.topics[3]!);
         break;
       }
@@ -95,16 +85,18 @@ export default function Landing() {
         address: DEMO_NFT_ADDRESS,
         abi: DEMO_NFT_ABI,
         functionName: "isApprovedForAll",
-        args: [address as Address, ESCROW_ADDRESS],
+        args: [address, ESCROW_ADDRESS],
       })) as boolean;
 
       if (!approved) {
         setState({ step: "approving", tokenId });
-        const approveHash = await writeContractAsync({
-          address: DEMO_NFT_ADDRESS,
-          abi: DEMO_NFT_ABI,
-          functionName: "setApprovalForAll",
-          args: [ESCROW_ADDRESS, true],
+        const approveHash = await smartClient.sendTransaction({
+          to: DEMO_NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: DEMO_NFT_ABI,
+            functionName: "setApprovalForAll",
+            args: [ESCROW_ADDRESS, true],
+          }),
         });
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
       }
@@ -112,11 +104,13 @@ export default function Landing() {
       setState({ step: "depositing", tokenId });
       const secret = generateSecret();
       const secretHash = hashSecret(secret);
-      const depositHash = await writeContractAsync({
-        address: ESCROW_ADDRESS,
-        abi: ESCROW_ABI,
-        functionName: "deposit",
-        args: [DEMO_NFT_ADDRESS, tokenId, secretHash, defaultExpiry()],
+      const depositHash = await smartClient.sendTransaction({
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: ESCROW_ABI,
+          functionName: "deposit",
+          args: [DEMO_NFT_ADDRESS, tokenId, secretHash, defaultExpiry()],
+        }),
       });
       const depositReceipt = await publicClient.waitForTransactionReceipt({
         hash: depositHash,
@@ -152,6 +146,7 @@ export default function Landing() {
 
   async function runClaim() {
     if (
+      !smartClient ||
       !publicClient ||
       state.escrowId === undefined ||
       !state.secret
@@ -159,11 +154,13 @@ export default function Landing() {
       return;
     try {
       setState((s) => ({ ...s, step: "claiming" }));
-      const hash = await writeContractAsync({
-        address: ESCROW_ADDRESS,
-        abi: ESCROW_ABI,
-        functionName: "claim",
-        args: [state.escrowId, state.secret],
+      const hash = await smartClient.sendTransaction({
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: ESCROW_ABI,
+          functionName: "claim",
+          args: [state.escrowId, state.secret],
+        }),
       });
       await publicClient.waitForTransactionReceipt({ hash });
       setState((s) => ({ ...s, step: "claimed" }));
@@ -232,8 +229,8 @@ export default function Landing() {
           Text a link. Tap. Own.
         </h1>
         <p className="text-neutral-400 text-lg max-w-xl mx-auto">
-          Send an NFT to anyone with just a link. No wallet required on the
-          receiving side. Sign in with email or phone, claim, done.
+          Send an NFT to anyone with just a link. No wallet, no gas. Sign in
+          with email or phone, claim, done.
         </p>
       </section>
 
@@ -247,20 +244,22 @@ export default function Landing() {
             onPrimary={
               !authenticated
                 ? () => login()
-                : deployed
+                : deployed && smartClient
                   ? runSend
                   : undefined
             }
             primaryLabel={
               !authenticated
                 ? "Sign in"
-                : state.step === "idle"
-                  ? "Mint and send"
-                  : state.step === "error"
-                    ? "Try again"
-                    : state.step === "sent" || state.step === "claimed"
-                      ? "Start over"
-                      : "Working..."
+                : !smartClient
+                  ? "Preparing wallet..."
+                  : state.step === "idle"
+                    ? "Mint and send"
+                    : state.step === "error"
+                      ? "Try again"
+                      : state.step === "sent" || state.step === "claimed"
+                        ? "Start over"
+                        : "Working..."
             }
             primaryBusy={
               state.step === "minting" ||
@@ -288,7 +287,9 @@ export default function Landing() {
             label={recipientLabel}
             state={state}
             side="recipient"
-            onPrimary={state.step === "sent" ? runClaim : undefined}
+            onPrimary={
+              state.step === "sent" && smartClient ? runClaim : undefined
+            }
             primaryLabel={
               state.step === "claimed"
                 ? "Claimed"
@@ -441,7 +442,7 @@ function Phone({
 
           {state.step === "claimed" && side === "recipient" ? (
             <div className="text-xs text-emerald-300">
-              The NFT is now in your wallet.
+              The NFT is now in your wallet. No gas.
             </div>
           ) : null}
         </div>

@@ -11,3 +11,4 @@ typechain-types/
 lib/deployed.json
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+.vercel
