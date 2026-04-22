@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0a0a;
+  --fg: #fafafa;
+  --muted: #737373;
+  --border: #262626;
+  --accent: #3b82f6;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.imessage-bubble {
+  background: linear-gradient(180deg, #007aff 0%, #0063d1 100%);
+  color: white;
+  border-radius: 18px 18px 4px 18px;
+  padding: 10px 14px;
+  max-width: 240px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.phone-frame {
+  background: #0f0f0f;
+  border: 8px solid #1c1c1c;
+  border-radius: 40px;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  position: relative;
+}
