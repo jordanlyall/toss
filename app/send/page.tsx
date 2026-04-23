@@ -16,6 +16,7 @@ import {
 import { NFTPreview } from "@/app/components/NFTPreview";
 import { SendSheet } from "@/app/send/SendSheet";
 import { discoverOwnedIds } from "@/lib/owned";
+import { haptic } from "@/lib/haptic";
 
 type MintStatus =
   | { kind: "idle" }
@@ -64,6 +65,39 @@ export default function SendPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, publicClient]);
 
+  // Pre-approve the escrow for all tokens the moment the wallet is ready.
+  // Fire-and-forget: if it fails, the explicit approval inside SendSheet still
+  // runs. Result: the first Send is a single tap instead of approve + deposit.
+  useEffect(() => {
+    if (!smartClient || !publicClient || !address) return;
+    if (!DEMO_NFT_ADDRESS || !ESCROW_ADDRESS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const approved = (await publicClient.readContract({
+          address: DEMO_NFT_ADDRESS,
+          abi: DEMO_NFT_ABI,
+          functionName: "isApprovedForAll",
+          args: [address, ESCROW_ADDRESS],
+        })) as boolean;
+        if (approved || cancelled) return;
+        await smartClient.sendTransaction({
+          to: DEMO_NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: DEMO_NFT_ABI,
+            functionName: "setApprovalForAll",
+            args: [ESCROW_ADDRESS, true],
+          }),
+        });
+      } catch {
+        // Silent — SendSheet will do the same check on demand.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [smartClient, publicClient, address]);
+
   const canMint = useMemo(
     () => !!smartClient && !!DEMO_NFT_ADDRESS,
     [smartClient],
@@ -71,6 +105,7 @@ export default function SendPage() {
 
   async function handleMint() {
     if (!smartClient || !publicClient || !address) return;
+    haptic.press();
     setMint({ kind: "minting" });
     try {
       const hash = await smartClient.sendTransaction({
@@ -98,7 +133,9 @@ export default function SendPage() {
       if (tokenId === null) throw new Error("Could not confirm new Toss");
       setOwnedIds((prev) => Array.from(new Set([...prev, tokenId!])));
       setMint({ kind: "idle" });
+      haptic.success();
     } catch (err: any) {
+      haptic.error();
       setMint({
         kind: "error",
         message: err?.shortMessage || err?.message || "Could not make a Toss",
@@ -221,9 +258,14 @@ export default function SendPage() {
             </div>
 
             {!ownedLoaded ? (
-              <div className="pt-10 pb-8 text-center text-sm text-neutral-500">
-                Loading...
-              </div>
+              <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <li key={i}>
+                    <div className="aspect-square w-full rounded-xl bg-neutral-900 animate-pulse" />
+                    <div className="mt-2 h-3 w-16 rounded bg-neutral-900 animate-pulse" />
+                  </li>
+                ))}
+              </ul>
             ) : ownedIds.length === 0 ? (
               <div className="pt-10 pb-8 text-center space-y-5">
                 <div className="space-y-1">
@@ -253,7 +295,10 @@ export default function SendPage() {
                   {ownedIds.map((id) => (
                     <li key={id.toString()}>
                       <button
-                        onClick={() => setActiveTokenId(id)}
+                        onClick={() => {
+                          haptic.tap();
+                          setActiveTokenId(id);
+                        }}
                         className="group w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl"
                         aria-label={`Send Toss #${id.toString()}`}
                       >
@@ -262,12 +307,12 @@ export default function SendPage() {
                             contract={DEMO_NFT_ADDRESS}
                             tokenId={id}
                             size="lg"
-                            className="!max-w-none transition-transform group-active:scale-[0.98]"
+                            className="!max-w-none transition-transform duration-150 group-active:scale-[0.96]"
                           />
                         </div>
                         <div className="mt-2 flex items-center justify-between px-0.5">
-                          <span className="font-mono text-xs text-neutral-400">
-                            #{id.toString()}
+                          <span className="text-xs text-neutral-400">
+                            Toss #{id.toString()}
                           </span>
                           <span className="text-[11px] text-neutral-500 group-hover:text-neutral-300">
                             Tap to send

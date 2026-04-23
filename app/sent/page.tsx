@@ -10,6 +10,7 @@ import { encodeFunctionData, type Address } from "viem";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { loadSentClaims, formatExpiry, type SentClaim } from "@/lib/sent";
 import { NFTPreview } from "@/app/components/NFTPreview";
+import { haptic } from "@/lib/haptic";
 
 function StatusPill({ status }: { status: SentClaim["status"] }) {
   const map: Record<SentClaim["status"], string> = {
@@ -71,6 +72,7 @@ export default function SentPage() {
 
   async function handleRevoke(id: bigint) {
     if (!smartClient || !publicClient) return;
+    haptic.press();
     setRevoking(id.toString());
     try {
       const hash = await smartClient.sendTransaction({
@@ -83,7 +85,9 @@ export default function SentPage() {
       });
       await publicClient.waitForTransactionReceipt({ hash });
       await refresh();
+      haptic.success();
     } catch (err: any) {
+      haptic.error();
       setError(err?.shortMessage || err?.message || "Could not take it back");
     } finally {
       setRevoking(null);
@@ -162,9 +166,20 @@ export default function SentPage() {
             </button>
           </div>
         ) : claims === null ? (
-          <div className="pt-10 text-center text-sm text-neutral-400">
-            Loading...
-          </div>
+          <ul className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <li
+                key={i}
+                className="rounded-xl border border-neutral-900 bg-neutral-950 p-3 flex items-center gap-3"
+              >
+                <div className="w-16 h-16 flex-shrink-0 rounded-lg bg-neutral-900 animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-24 rounded bg-neutral-900 animate-pulse" />
+                  <div className="h-3 w-16 rounded bg-neutral-900 animate-pulse" />
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : claims.length === 0 ? (
           <div className="pt-10 pb-8 text-center space-y-5">
             <div className="space-y-1">
@@ -211,8 +226,8 @@ export default function SentPage() {
                     </div>
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm">
-                          #{c.tokenId.toString()}
+                        <span className="text-sm text-neutral-200">
+                          Toss #{c.tokenId.toString()}
                         </span>
                         <StatusPill status={c.status} />
                       </div>

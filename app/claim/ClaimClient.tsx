@@ -11,6 +11,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { parseEscrowId, parseSecretFragment } from "@/lib/claim";
 import { NFTPreview } from "@/app/components/NFTPreview";
+import { haptic } from "@/lib/haptic";
 
 type Parsed = { id: bigint; secret: `0x${string}` };
 
@@ -85,6 +86,7 @@ export default function ClaimClient() {
 
   async function handleClaim() {
     if (!smartClient || !publicClient || !parsed) return;
+    haptic.press();
     setStatus({ kind: "claiming" });
     try {
       const hash = await smartClient.sendTransaction({
@@ -97,7 +99,9 @@ export default function ClaimClient() {
       });
       await publicClient.waitForTransactionReceipt({ hash });
       setStatus({ kind: "claimed" });
+      haptic.success();
     } catch (err: any) {
+      haptic.error();
       setStatus({
         kind: "error",
         message: err?.shortMessage || err?.message || "Something went wrong",

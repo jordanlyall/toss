@@ -22,12 +22,16 @@ import {
   hashSecret,
 } from "@/lib/claim";
 import { NFTPreview } from "@/app/components/NFTPreview";
+import { haptic } from "@/lib/haptic";
 
 type Phase =
   | { kind: "idle" }
   | { kind: "sending"; step: string }
   | { kind: "ready"; escrowId: bigint; url: string }
+  | { kind: "undoing" }
   | { kind: "error"; message: string };
+
+const UNDO_WINDOW_MS = 5000;
 
 type Props = {
   tokenId: bigint | null;
@@ -74,6 +78,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
   async function handleSend() {
     if (!smartClient || !publicClient || !address || tokenId === null) return;
+    haptic.press();
     try {
       setPhase({ kind: "sending", step: "Checking approval" });
       const approved = (await publicClient.readContract({
@@ -138,7 +143,10 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
       const url = buildClaimUrl(origin, escrowId, secret);
       onSent(tokenId);
       setPhase({ kind: "ready", escrowId, url });
+      setUndoDeadline(Date.now() + UNDO_WINDOW_MS);
+      haptic.success();
     } catch (err: any) {
+      haptic.error();
       setPhase({
         kind: "error",
         message: err?.shortMessage || err?.message || "Send failed",
@@ -148,6 +156,8 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [undoDeadline, setUndoDeadline] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (typeof navigator !== "undefined" && "share" in navigator) {
@@ -159,11 +169,13 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(url);
       setCopied(true);
+      haptic.tap();
       setTimeout(() => setCopied(false), 1500);
     }
   }
 
   async function handleShare(url: string) {
+    setUndoDeadline(null); // Sharing commits — drop the undo window.
     const text = "You got a Toss. Open it here:";
     if (canNativeShare) {
       try {
@@ -175,6 +187,46 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
     }
     handleCopy(url);
   }
+
+  async function handleUndo(escrowId: bigint) {
+    if (!smartClient || !publicClient) return;
+    haptic.press();
+    setUndoDeadline(null);
+    setPhase({ kind: "undoing" });
+    try {
+      const hash = await smartClient.sendTransaction({
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: ESCROW_ABI,
+          functionName: "revoke",
+          args: [escrowId],
+        }),
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      haptic.success();
+      onClose();
+    } catch (err: any) {
+      haptic.error();
+      setPhase({
+        kind: "error",
+        message: err?.shortMessage || err?.message || "Could not undo",
+      });
+    }
+  }
+
+  // Tick once a second while the undo window is open so the countdown
+  // re-renders. Stops as soon as the deadline passes.
+  useEffect(() => {
+    if (!undoDeadline) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [undoDeadline]);
+
+  const undoRemaining =
+    undoDeadline != null ? Math.max(0, undoDeadline - now) : 0;
+  const undoActive = undoRemaining > 0 && phase.kind === "ready";
+  const undoSeconds = Math.ceil(undoRemaining / 1000);
 
   if (!mounted) return null;
 
@@ -239,8 +291,8 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
             {tokenId !== null ? (
               <div className="text-center">
-                <div className="font-mono text-sm text-neutral-500">
-                  #{tokenId.toString()}
+                <div className="text-sm text-neutral-400">
+                  Toss #{tokenId.toString()}
                 </div>
               </div>
             ) : null}
@@ -263,14 +315,48 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
               </button>
             ) : null}
 
+            {phase.kind === "undoing" ? (
+              <button
+                disabled
+                className="w-full rounded-xl bg-neutral-800 px-5 py-4 text-base font-medium min-h-[52px]"
+              >
+                Taking it back...
+              </button>
+            ) : null}
+
             {phase.kind === "ready" ? (
               <div className="space-y-3">
-                <input
-                  readOnly
-                  value={phase.url}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className="w-full rounded-lg bg-black border border-neutral-800 px-3 py-3 font-mono text-xs"
-                />
+                {undoActive ? (
+                  <button
+                    onClick={() => handleUndo(phase.escrowId)}
+                    className="w-full rounded-xl border border-neutral-800 hover:border-neutral-700 bg-neutral-950 px-4 py-3 text-sm text-neutral-200 min-h-[44px] flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M4 3L1 6l3 3M1 6h8a3 3 0 010 6H7"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span>Undo</span>
+                    <span className="text-neutral-500">· {undoSeconds}s</span>
+                  </button>
+                ) : (
+                  <input
+                    readOnly
+                    value={phase.url}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full rounded-lg bg-black border border-neutral-800 px-3 py-3 font-mono text-xs"
+                  />
+                )}
                 <button
                   onClick={() => handleShare(phase.url)}
                   className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium min-h-[52px] flex items-center justify-center gap-2"
@@ -292,7 +378,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
                   </svg>
                   {canNativeShare ? "Share" : "Copy link"}
                 </button>
-                {canNativeShare ? (
+                {canNativeShare && !undoActive ? (
                   <button
                     onClick={() => handleCopy(phase.url)}
                     className="w-full rounded-xl border border-neutral-800 hover:border-neutral-700 px-4 py-3 text-sm text-neutral-300 hover:text-white min-h-[44px]"
