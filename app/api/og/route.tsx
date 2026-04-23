@@ -7,7 +7,8 @@ import {
   ESCROW_ADDRESS,
 } from "@/lib/contracts";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
