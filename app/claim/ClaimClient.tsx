@@ -310,9 +310,15 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
                   <button
                     onClick={handleClaim}
                     disabled={!openable || isBusy}
-                    className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
+                    className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-70 px-5 py-4 text-base font-medium min-h-[52px] flex items-center justify-center gap-2"
                   >
-                    {label}
+                    {isBusy ? (
+                      <span
+                        className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white/90 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <span>{label}</span>
                   </button>
                 );
               })()
