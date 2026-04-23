@@ -11,3 +11,6 @@ typechain-types/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 .vercel
+
+# Visual brainstorming companion
+.superpowers/
