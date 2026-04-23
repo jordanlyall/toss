@@ -114,10 +114,10 @@ export default function SentPage() {
           </Link>
           <nav className="flex items-center gap-1 text-sm">
             <Link
-              href="/send"
+              href="/collection"
               className="min-h-11 px-3 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white flex items-center"
             >
-              Send
+              Collection
             </Link>
             <span className="min-h-11 px-3 rounded-full bg-neutral-900 text-white flex items-center">
               Sent
@@ -189,7 +189,7 @@ export default function SentPage() {
               </div>
             </div>
             <Link
-              href="/send"
+              href="/collection"
               className="inline-block rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-3 text-sm font-medium min-h-[44px]"
             >
               Send a Toss
@@ -264,7 +264,7 @@ export default function SentPage() {
         )}
 
         <div className="mt-10 text-center text-xs text-neutral-600">
-          <Link href="/send" className="hover:text-neutral-300">
+          <Link href="/collection" className="hover:text-neutral-300">
             Send another
           </Link>
         </div>

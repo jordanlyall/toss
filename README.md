@@ -90,7 +90,7 @@ Add the production URL to your Privy app's allowed origins.
 ## Routes
 
 - `/` — marketing landing page with a live side-by-side demo (sender phone + iMessage thread + recipient phone).
-- `/send` — real sender flow. Mint, approve escrow, deposit, copy the claim link.
+- `/collection` — your Tosses. Tap one to send. (Old `/send` redirects here.)
 - `/claim` — real recipient flow. Open the link, sign in, claim.
 
 ## Stack

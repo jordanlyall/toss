@@ -34,7 +34,7 @@ toss/
 
 1. `app/providers.tsx` — Privy + Wagmi provider tree
 2. `app/page.tsx` — **hero: side-by-side iPhone mockup demo** (both flows in one view)
-3. `app/send/page.tsx` — mint test NFT, approve escrow, deposit, show claim URL
+3. `app/collection/page.tsx` — mint test NFT, approve escrow, deposit, show claim URL
 4. `app/claim/page.tsx` — parse fragment, Privy sign-in, preview NFT, claim
 5. `scripts/mint.ts` — helper to mint demo NFTs from deployer
 6. `README.md` — setup, deploy, Privy dashboard steps
@@ -81,7 +81,7 @@ A single page showing TWO column panels styled like iPhones. Left column is the 
 
 Implementation shortcut: both panels use the same wallet (connected via Privy). The "sender" panel mints + deposits. The "recipient" panel reads the generated claim URL and lets the user claim to a different address (either the same wallet, which is fine for demo, or a freshly created embedded wallet via a second Privy `login()`). For simplicity of v1, let both sides use the same wallet — the story is the UX flow, not the address separation.
 
-Production `/send` and `/claim` routes are the real thing. The landing page is the cinematic demo.
+Production `/collection` and `/claim` routes are the real thing. The landing page is the cinematic demo.
 
 ### Embedded wallet as the recipient story
 The recipient flow must demonstrate: tap link → sign in with email or phone → passkey/embedded wallet is auto-created → claim. User never sees "wallet" terminology. Use Privy's `login()` modal, then `useWallets()` to get the embedded wallet, then write to `claim`.
@@ -100,12 +100,12 @@ Provider tree described above. Export `Providers` as a `'use client'` component.
 - Left phone: mint → deposit → "Link copied" state
 - Middle: iMessage-style conversation showing the link bubble
 - Right phone: tap link → preview NFT → claim → "You own it" state
-- Below: "Try the real thing" with links to `/send` and `/claim`
+- Below: "Try the real thing" with links to `/collection` and `/claim`
 - Link to GitHub repo + Basescan for deployed contracts
 
 Make it look sharp. Dark mode only. Use system font stack already configured. No emoji. No gradients except the iMessage bubble.
 
-### 3. `app/send/page.tsx`
+### 3. `app/collection/page.tsx`
 - If not signed in: big "Sign in to send" button → Privy modal
 - Once signed in: show connected address (truncated), balance
 - "Mint a demo NFT" button — calls `mint()`, waits, shows the new tokenId
@@ -152,5 +152,5 @@ Include a "How it works" section summarizing the escrow + secret pattern in 3 bu
 
 - `npm run deploy:sepolia` completes, `lib/deployed.json` is populated
 - `npm run dev` on `localhost:3000` renders the landing page with two phone mockups
-- Real flow: mint a DemoNFT on `/send`, deposit, get a URL, paste in incognito window, sign in with a different email, claim, see NFT in recipient wallet on Basescan
+- Real flow: mint a DemoNFT on `/collection`, deposit, get a URL, paste in incognito window, sign in with a different email, claim, see NFT in recipient wallet on Basescan
 - Deployed to Vercel with working Privy auth on the production URL

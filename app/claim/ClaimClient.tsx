@@ -128,7 +128,7 @@ export default function ClaimClient() {
             Toss
           </Link>
           <Link
-            href="/send"
+            href="/collection"
             className="text-sm text-neutral-400 hover:text-white"
           >
             Send one
@@ -203,7 +203,7 @@ export default function ClaimClient() {
             {status.kind === "claimed" ? (
               <div className="space-y-3">
                 <Link
-                  href="/send"
+                  href="/collection"
                   className="block w-full text-center rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium min-h-[52px] flex items-center justify-center"
                 >
                   See your collection

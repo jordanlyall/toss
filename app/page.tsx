@@ -207,8 +207,8 @@ export default function Landing() {
       <header className="max-w-6xl mx-auto px-6 pt-6 flex items-center justify-between">
         <span className="text-sm tracking-tight font-semibold">Toss</span>
         <nav className="flex items-center gap-5 text-sm text-neutral-400">
-          <Link href="/send" className="hover:text-white">
-            Send
+          <Link href="/collection" className="hover:text-white">
+            Collection
           </Link>
           <Link href="/sent" className="hover:text-white">
             Sent
@@ -324,7 +324,7 @@ export default function Landing() {
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link
-            href="/send"
+            href="/collection"
             className="rounded-lg bg-white text-black px-5 py-3 text-sm font-medium"
           >
             Send a Toss

@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      { source: "/send", destination: "/collection", permanent: true },
+    ];
+  },
   webpack: (config) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     // Privy v3 lists these as optional peers but webpack resolves them at build time.

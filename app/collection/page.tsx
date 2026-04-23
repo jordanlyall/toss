@@ -14,7 +14,7 @@ import {
   ESCROW_ADDRESS,
 } from "@/lib/contracts";
 import { NFTPreview } from "@/app/components/NFTPreview";
-import { SendSheet } from "@/app/send/SendSheet";
+import { SendSheet } from "@/app/collection/SendSheet";
 import { discoverOwnedIds } from "@/lib/owned";
 import { haptic } from "@/lib/haptic";
 
@@ -23,7 +23,7 @@ type MintStatus =
   | { kind: "minting" }
   | { kind: "error"; message: string };
 
-export default function SendPage() {
+export default function CollectionPage() {
   const { ready, authenticated, login, logout } = usePrivy();
   const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
@@ -163,7 +163,7 @@ export default function SendPage() {
           {authenticated && address ? (
             <nav className="flex items-center gap-1 text-sm">
               <span className="min-h-11 px-3 rounded-full bg-neutral-900 text-white flex items-center">
-                Send
+                Collection
               </span>
               <Link
                 href="/sent"
