@@ -39,11 +39,6 @@ function StatusPill({ status }: { status: SentClaim["status"] }) {
   );
 }
 
-function shortenAddr(addr: string | null | undefined): string {
-  if (!addr) return "";
-  return `${addr.slice(0, 4)}..${addr.slice(-4)}`;
-}
-
 export default function SentPage() {
   const { ready, authenticated, login } = usePrivy();
   const { client: smartClient } = useSmartWallets();
@@ -218,15 +213,19 @@ export default function SentPage() {
                         </span>
                         <StatusPill status={c.status} />
                       </div>
-                      <div className="text-xs text-neutral-500">
-                        {c.status === "pending"
-                          ? formatExpiry(c.expiresAt)
-                          : c.status === "claimed" && c.recipient
-                            ? `by ${shortenAddr(c.recipient)}`
-                            : c.status === "expired"
-                              ? "Link no longer valid"
-                              : "Back in your collection"}
-                      </div>
+                      {c.status === "pending" ? (
+                        <div className="text-xs text-neutral-500">
+                          {formatExpiry(c.expiresAt)}
+                        </div>
+                      ) : c.status === "expired" ? (
+                        <div className="text-xs text-neutral-500">
+                          Link no longer valid
+                        </div>
+                      ) : c.status === "revoked" ? (
+                        <div className="text-xs text-neutral-500">
+                          Back in your collection
+                        </div>
+                      ) : null}
                     </div>
                     {c.status === "pending" ? (
                       <button
@@ -250,11 +249,6 @@ export default function SentPage() {
           </>
         )}
 
-        <div className="mt-10 text-center text-xs text-neutral-600">
-          <Link href="/collection" className="hover:text-neutral-300">
-            Send another
-          </Link>
-        </div>
       </div>
     </main>
   );

@@ -140,10 +140,10 @@ export default function ClaimClient() {
         {!parsed ? (
           <div className="pt-10 text-center space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Link not valid
+              This link is incomplete
             </h1>
             <p className="text-neutral-400 text-sm max-w-sm mx-auto">
-              This link is missing something. Ask the sender to resend.
+              Ask the sender to resend it.
             </p>
           </div>
         ) : !ESCROW_ADDRESS ? (
