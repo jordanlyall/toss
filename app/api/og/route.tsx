@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const WIDTH = 1200;
-const HEIGHT = 630;
+const HEIGHT = 1200;
 
 type Escrow = {
   sender: `0x${string}`;
@@ -85,25 +85,13 @@ export async function GET(req: Request) {
     }
   }
 
-  const headline =
-    state === "ready"
-      ? "You got a Toss"
-      : state === "claimed"
-        ? "Already opened"
-        : state === "expired"
-          ? "Link expired"
-          : "Toss";
-  const subline =
-    state === "ready"
-      ? "Open to keep it. Free. Takes seconds."
-      : state === "claimed"
-        ? "Someone already opened this one."
-        : state === "expired"
-          ? "Ask the sender for a fresh link."
-          : "Send a Toss by link.";
-
-  const ACCENT = state === "ready" ? "#6a9bcc" : "#8a8882";
   const dimmed = state !== "ready";
+  const stateLabel =
+    state === "claimed"
+      ? "Already opened"
+      : state === "expired"
+        ? "Expired"
+        : null;
 
   return new ImageResponse(
     (
@@ -112,84 +100,70 @@ export async function GET(req: Request) {
           width: "100%",
           height: "100%",
           display: "flex",
-          background: "linear-gradient(135deg, #0e0e0d 0%, #191817 100%)",
-          color: "#faf9f5",
-          fontFamily: "sans-serif",
-          padding: 64,
-          alignItems: "center",
-          gap: 64,
+          position: "relative",
+          background: "#0e0e0d",
+          overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            width: 480,
-            height: 480,
-            borderRadius: 20,
-            background: "#1a1a18",
-            border: "1px solid #2b2a27",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-            flexShrink: 0,
-            opacity: dimmed ? 0.55 : 1,
-          }}
-        >
-          {nftImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={nftImage}
-              width={480}
-              height={480}
-              alt=""
-              style={{ display: "block" }}
-            />
-          ) : (
-            <div style={{ color: "#5c5a54", fontSize: 24 }}>Toss</div>
-          )}
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            flex: 1,
-            gap: 20,
-          }}
-        >
-          <div
+        {nftImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={nftImage}
+            width={WIDTH}
+            height={HEIGHT}
+            alt=""
             style={{
-              fontSize: 24,
-              fontWeight: 500,
-              letterSpacing: 4,
-              textTransform: "uppercase",
-              color: ACCENT,
+              width: WIDTH,
+              height: HEIGHT,
+              display: "block",
+              opacity: dimmed ? 0.4 : 1,
             }}
-          >
-            TOSS
-          </div>
+          />
+        ) : (
           <div
             style={{
-              fontSize: 78,
-              fontWeight: 700,
-              lineHeight: 1.05,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#5c5a54",
+              fontSize: 64,
+              fontFamily: "sans-serif",
               letterSpacing: -2,
-              color: "#faf9f5",
             }}
           >
-            {headline}
+            Toss
           </div>
+        )}
+
+        {stateLabel ? (
           <div
             style={{
-              fontSize: 34,
-              color: "#c9c7bf",
-              lineHeight: 1.3,
-              marginTop: 8,
+              position: "absolute",
+              top: 48,
+              left: 48,
+              right: 48,
+              display: "flex",
+              justifyContent: "center",
             }}
           >
-            {subline}
+            <div
+              style={{
+                background: "rgba(14, 14, 13, 0.88)",
+                color: "#faf9f5",
+                fontFamily: "sans-serif",
+                fontSize: 44,
+                fontWeight: 600,
+                letterSpacing: -1,
+                padding: "18px 36px",
+                borderRadius: 999,
+              }}
+            >
+              {stateLabel}
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
     ),
     {
