@@ -246,6 +246,46 @@ export default function CollectionPage() {
             ) : (
               <>
                 <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {canMint ? (
+                    <li>
+                      <button
+                        onClick={handleMint}
+                        disabled={isMinting}
+                        className="group w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl disabled:opacity-60"
+                        aria-label={isMinting ? "Making a new Field Note" : "Make a new Field Note"}
+                      >
+                        <div className="aspect-square w-full rounded-xl border border-dashed border-neutral-700 group-hover:border-neutral-500 group-active:scale-[0.96] transition-transform duration-150 flex items-center justify-center">
+                          {isMinting ? (
+                            <div className="flex flex-col items-center gap-2 text-neutral-400">
+                              <div className="w-5 h-5 rounded-full border-2 border-neutral-700 border-t-neutral-400 animate-spin" />
+                              <span className="text-[11px] uppercase tracking-[0.14em]">Making</span>
+                            </div>
+                          ) : (
+                            <svg
+                              width="28"
+                              height="28"
+                              viewBox="0 0 28 28"
+                              fill="none"
+                              className="text-neutral-500 group-hover:text-neutral-300 transition-colors"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M14 6v16M6 14h16"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="mt-2 px-0.5">
+                          <span className="text-xs text-neutral-500 group-hover:text-neutral-300 transition-colors">
+                            Make new
+                          </span>
+                        </div>
+                      </button>
+                    </li>
+                  ) : null}
                   {ownedIds.map((id) => (
                     <li key={id.toString()}>
                       <button
@@ -285,33 +325,6 @@ export default function CollectionPage() {
           </>
         )}
       </div>
-
-      {authenticated &&
-      smartClient &&
-      canMint &&
-      ownedIds.length > 0 &&
-      activeTokenId === null ? (
-        <button
-          onClick={handleMint}
-          disabled={isMinting}
-          aria-label="New Toss"
-          className="fixed right-6 z-20 h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 shadow-lg shadow-blue-950/50 flex items-center justify-center text-white active:scale-95 transition-transform"
-          style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
-        >
-          {isMinting ? (
-            <span className="text-lg">...</span>
-          ) : (
-            <svg width="22" height="22" viewBox="0 0 14 14" fill="none">
-              <path
-                d="M7 2v10M2 7h10"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
-          )}
-        </button>
-      ) : null}
 
       <SendSheet
         tokenId={activeTokenId}
