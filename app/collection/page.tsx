@@ -127,7 +127,9 @@ export default function CollectionPage() {
         break;
       }
       if (tokenId === null) throw new Error("Could not confirm the new Field Note");
-      setOwnedIds((prev) => Array.from(new Set([...prev, tokenId!])));
+      setOwnedIds((prev) =>
+        prev.includes(tokenId!) ? prev : [tokenId!, ...prev],
+      );
       setMint({ kind: "idle" });
       haptic.success();
     } catch (err: any) {
