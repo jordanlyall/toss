@@ -141,4 +141,11 @@ export const DEMO_NFT_ABI = [
     inputs: [{ name: "tokenId", type: "uint256" }],
     outputs: [{ type: "string" }],
   },
+  {
+    type: "function",
+    name: "nextId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
 ] as const;
