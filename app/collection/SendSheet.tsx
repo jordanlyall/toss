@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { usePublicClient } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
@@ -23,6 +23,7 @@ import {
 } from "@/lib/claim";
 import { NFTPreview } from "@/app/components/NFTPreview";
 import { haptic } from "@/lib/haptic";
+import { deriveTraits } from "@/lib/traits";
 
 type Phase =
   | { kind: "idle" }
@@ -46,12 +47,21 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [mounted, setMounted] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const traits = useMemo(
+    () => (tokenId !== null ? deriveTraits(tokenId) : null),
+    [tokenId],
+  );
 
   const open = tokenId !== null;
 
-  // Reset phase whenever a new token opens.
+  // Reset phase and details disclosure whenever a new token opens.
   useEffect(() => {
-    if (tokenId !== null) setPhase({ kind: "idle" });
+    if (tokenId !== null) {
+      setPhase({ kind: "idle" });
+      setDetailsOpen(false);
+    }
   }, [tokenId]);
 
   // Animate in/out: mount as soon as a token is selected, keep mounted
@@ -290,9 +300,12 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
             ) : null}
 
             {tokenId !== null ? (
-              <div className="text-center">
-                <div className="text-sm text-neutral-400">
-                  Note #{tokenId.toString()}
+              <div className="text-center space-y-1">
+                <div className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+                  Jordan Lyall
+                </div>
+                <div className="text-sm text-neutral-200">
+                  Note #{tokenId.toString()}, 2026
                 </div>
               </div>
             ) : null}
@@ -406,6 +419,37 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
                 >
                   Try again
                 </button>
+              </div>
+            ) : null}
+
+            {traits ? (
+              <div className="-mx-5 -mb-6 pt-2 border-t border-neutral-900">
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen((v) => !v)}
+                  aria-expanded={detailsOpen}
+                  className="w-full px-5 py-3 text-center text-xs uppercase tracking-[0.14em] text-neutral-500 hover:text-neutral-300 min-h-11"
+                >
+                  {detailsOpen ? "Hide details" : "Details"}
+                </button>
+                {detailsOpen ? (
+                  <dl className="px-5 pb-5 pt-1 space-y-2 text-sm">
+                    <div className="flex justify-between items-baseline">
+                      <dt className="text-neutral-500">Palette</dt>
+                      <dd className="text-neutral-200">{traits.palette}</dd>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <dt className="text-neutral-500">Grid</dt>
+                      <dd className="text-neutral-200">
+                        {traits.gridSize} × {traits.gridSize}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <dt className="text-neutral-500">Chain</dt>
+                      <dd className="text-neutral-200">Base</dd>
+                    </div>
+                  </dl>
+                ) : null}
               </div>
             ) : null}
           </div>
