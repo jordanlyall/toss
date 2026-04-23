@@ -4,7 +4,7 @@ import { baseSepolia } from "viem/chains";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "./contracts";
 import { getDisplayNameForAddress } from "./privyServer";
 
-const DEFAULT_TITLE = "You got a Toss";
+const DEFAULT_TITLE = "You got a Field Note";
 const DEFAULT_DESCRIPTION = "Open to keep it. Free. Takes seconds.";
 
 type Escrow = {
@@ -53,7 +53,7 @@ export async function buildClaimMetadata(
       const sender = await resolveSender(id);
       if (sender) {
         const name = await getDisplayNameForAddress(sender);
-        if (name) title = `${name} sent you a Toss`;
+        if (name) title = `${name} sent you a Field Note`;
       }
     } catch {
       // Invalid id -> keep default title.
