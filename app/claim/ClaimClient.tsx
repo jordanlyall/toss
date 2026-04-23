@@ -125,7 +125,7 @@ export default function ClaimClient() {
             href="/"
             className="text-base font-semibold tracking-tight text-white"
           >
-            Toss
+            Field Notes
           </Link>
           <Link
             href="/collection"

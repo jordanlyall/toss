@@ -111,7 +111,7 @@ export default function SentPage() {
             href="/"
             className="text-base font-semibold tracking-tight text-white"
           >
-            Toss
+            Field Notes
           </Link>
           <nav className="flex items-center gap-1 text-sm">
             <Link

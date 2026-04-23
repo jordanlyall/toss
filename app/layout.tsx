@@ -12,8 +12,8 @@ const SITE_URL =
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Toss — send a Toss by link.",
-  description: "Text a link. Tap. Keep it. Free.",
+  title: "Field Notes — small compositions, made to be given.",
+  description: "On-chain glyph grids by Jordan Lyall. Free to make. Sent by link.",
 };
 
 // Privy initializes with runtime env vars. Static prerender would fail when

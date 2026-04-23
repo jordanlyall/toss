@@ -82,7 +82,7 @@ export default function SettingsPage() {
             href="/collection"
             className="text-base font-semibold tracking-tight text-white"
           >
-            Toss
+            Field Notes
           </Link>
           {authenticated && address ? (
             <nav className="flex items-center gap-1 text-sm">
