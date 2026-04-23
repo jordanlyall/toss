@@ -12,8 +12,8 @@ const SITE_URL =
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Toss. Send NFTs by link.",
-  description: "Text a link. Tap. Own. Passkey-native NFT transfer on Base.",
+  title: "Toss — send a Toss by link.",
+  description: "Text a link. Tap. Keep it. Free.",
 };
 
 // Privy initializes with runtime env vars. Static prerender would fail when

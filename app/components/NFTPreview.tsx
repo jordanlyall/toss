@@ -127,7 +127,7 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={imageUri}
-        alt={`Token #${tokenId.toString()}`}
+        alt={`Toss #${tokenId.toString()}`}
         className="w-full h-full object-cover block"
       />
     </div>

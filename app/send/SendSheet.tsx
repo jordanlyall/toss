@@ -164,7 +164,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
   }
 
   async function handleShare(url: string) {
-    const text = "You got an NFT. Claim it here:";
+    const text = "You got a Toss. Open it here:";
     if (canNativeShare) {
       try {
         await navigator.share({ url, title: "Toss", text });
@@ -205,7 +205,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
           <div className="flex items-center justify-between px-5 pt-4 pb-2">
             <div className="w-10 h-1 rounded-full bg-neutral-800 mx-auto sm:hidden" />
             <div className="hidden sm:block text-sm text-neutral-400">
-              {ready ? "Ready to share" : "Send this NFT"}
+              {ready ? "Ready to share" : "Send this Toss"}
             </div>
             <button
               onClick={onClose}
@@ -239,8 +239,8 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
             {tokenId !== null ? (
               <div className="text-center">
-                <div className="font-mono text-sm text-neutral-400">
-                  Token #{tokenId.toString()}
+                <div className="font-mono text-sm text-neutral-500">
+                  #{tokenId.toString()}
                 </div>
               </div>
             ) : null}
@@ -250,7 +250,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
                 onClick={handleSend}
                 className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium min-h-[52px]"
               >
-                Send it
+                Send
               </button>
             ) : null}
 

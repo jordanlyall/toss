@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { usePublicClient } from "wagmi";
@@ -26,14 +26,8 @@ type EscrowData = {
 type Status =
   | { kind: "idle" }
   | { kind: "claiming" }
-  | { kind: "claimed"; txHash: `0x${string}` }
+  | { kind: "claimed" }
   | { kind: "error"; message: string };
-
-const BASESCAN = "https://sepolia.basescan.org";
-
-function shorten(addr: string): string {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
 
 export default function ClaimClient() {
   const { ready, authenticated, login } = usePrivy();
@@ -73,7 +67,7 @@ export default function ClaimClient() {
         if (!cancelled) setEscrow(data);
       } catch (err: any) {
         if (!cancelled)
-          setEscrowErr(err?.shortMessage || err?.message || "Lookup failed");
+          setEscrowErr(err?.shortMessage || err?.message || "Could not load");
       }
     })();
     return () => {
@@ -84,7 +78,7 @@ export default function ClaimClient() {
   const now = Math.floor(Date.now() / 1000);
   const expired = escrow ? Number(escrow.expiresAt) < now : false;
   const settled = escrow?.settled ?? false;
-  const claimable = !!escrow && !expired && !settled;
+  const openable = !!escrow && !expired && !settled;
 
   async function handleClaim() {
     if (!smartClient || !publicClient || !parsed) return;
@@ -99,19 +93,14 @@ export default function ClaimClient() {
         }),
       });
       await publicClient.waitForTransactionReceipt({ hash });
-      setStatus({ kind: "claimed", txHash: hash });
+      setStatus({ kind: "claimed" });
     } catch (err: any) {
       setStatus({
         kind: "error",
-        message: err?.shortMessage || err?.message || "Claim failed",
+        message: err?.shortMessage || err?.message || "Something went wrong",
       });
     }
   }
-
-  const nftLink = useMemo(() => {
-    if (!escrow) return null;
-    return `${BASESCAN}/token/${escrow.nftContract}?a=${escrow.tokenId.toString()}`;
-  }, [escrow]);
 
   if (!ready || !fragmentRead) {
     return (
@@ -122,144 +111,137 @@ export default function ClaimClient() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-xl mx-auto">
-      <nav className="flex items-center justify-between mb-10">
-        <Link href="/" className="text-sm text-neutral-400 hover:text-white">
-          Toss
-        </Link>
-        <Link href="/send" className="text-sm text-neutral-400 hover:text-white">
-          Send
-        </Link>
-      </nav>
-
-      {!parsed ? (
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-3">Invalid claim link</h1>
-          <p className="text-neutral-400 text-sm">
-            This link is missing an id or secret. Ask the sender to resend.
-          </p>
+    <main className="min-h-screen pb-20">
+      <header className="sticky top-0 z-20 bg-black/80 backdrop-blur border-b border-neutral-900">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-base font-semibold tracking-tight text-white"
+          >
+            Toss
+          </Link>
+          <Link
+            href="/send"
+            className="text-sm text-neutral-400 hover:text-white"
+          >
+            Send one
+          </Link>
         </div>
-      ) : !ESCROW_ADDRESS ? (
-        <div className="rounded-lg border border-amber-900 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
-          Contracts not deployed yet.
-        </div>
-      ) : (
-        <>
-          <h1 className="text-3xl font-semibold tracking-tight mb-6">
-            You got an NFT
-          </h1>
+      </header>
 
-          {escrow ? (
-            <div className="flex justify-center mb-6">
-              <NFTPreview
-                contract={escrow.nftContract}
-                tokenId={escrow.tokenId}
-                size="lg"
-              />
+      <div className="max-w-md mx-auto px-4 pt-8">
+        {!parsed ? (
+          <div className="pt-10 text-center space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Link not valid
+            </h1>
+            <p className="text-neutral-400 text-sm max-w-sm mx-auto">
+              This link is missing something. Ask the sender to resend.
+            </p>
+          </div>
+        ) : !ESCROW_ADDRESS ? (
+          <div className="rounded-lg border border-amber-900 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+            Not ready yet. Check back in a minute.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="text-center space-y-1">
+              <h1 className="text-3xl font-semibold tracking-tight">
+                {status.kind === "claimed"
+                  ? "It's yours"
+                  : settled
+                    ? "Already opened"
+                    : expired
+                      ? "Link expired"
+                      : "You got a Toss"}
+              </h1>
+              {status.kind === "claimed" ? (
+                <p className="text-neutral-400 text-sm">
+                  Saved to your collection.
+                </p>
+              ) : settled ? (
+                <p className="text-neutral-400 text-sm">
+                  Someone already opened this one.
+                </p>
+              ) : expired ? (
+                <p className="text-neutral-400 text-sm">
+                  Ask the sender for a fresh link.
+                </p>
+              ) : (
+                <p className="text-neutral-400 text-sm">
+                  Open to keep it.
+                </p>
+              )}
             </div>
-          ) : null}
 
-          <section className="rounded-lg border border-neutral-800 p-4 mb-6 space-y-2 text-sm">
             {escrow ? (
-              <>
-                <Row label="Escrow" value={`#${parsed.id.toString()}`} />
-                <Row label="Contract" value={shorten(escrow.nftContract)} />
-                <Row label="Token ID" value={`#${escrow.tokenId.toString()}`} />
-                <Row label="From" value={shorten(escrow.sender)} />
-                <Row
-                  label="Status"
-                  value={
-                    settled
-                      ? "Already claimed or revoked"
-                      : expired
-                        ? "Expired"
-                        : "Ready"
-                  }
-                />
-                {nftLink ? (
-                  <a
-                    href={nftLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block text-blue-400 hover:text-blue-300 text-xs pt-1"
-                  >
-                    View on Basescan
-                  </a>
-                ) : null}
-              </>
+              <div className="flex justify-center">
+                <div className="w-full max-w-[300px]">
+                  <NFTPreview
+                    contract={escrow.nftContract}
+                    tokenId={escrow.tokenId}
+                    size="lg"
+                    className="!max-w-none"
+                  />
+                </div>
+              </div>
             ) : escrowErr ? (
-              <div className="text-red-300">{escrowErr}</div>
+              <div className="rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                {escrowErr}
+              </div>
             ) : (
-              <div className="text-neutral-500">Looking up escrow...</div>
+              <div className="aspect-square w-full max-w-[300px] mx-auto rounded-xl border border-neutral-800 bg-neutral-950 animate-pulse" />
             )}
-          </section>
 
-          {status.kind === "claimed" ? (
-            <div className="rounded-lg border border-emerald-900 bg-emerald-950/30 p-5 space-y-3">
-              <div className="text-lg font-semibold text-emerald-100">
-                You own it.
-              </div>
-              <div className="text-sm text-emerald-200">
-                The NFT is in your wallet. No gas paid.
-              </div>
-              <div className="flex gap-3 text-sm pt-1">
-                <a
-                  href={`${BASESCAN}/tx/${status.txHash}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-400 hover:text-blue-300"
+            {status.kind === "claimed" ? (
+              <div className="space-y-3">
+                <Link
+                  href="/send"
+                  className="block w-full text-center rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium min-h-[52px] flex items-center justify-center"
                 >
-                  View transaction
-                </a>
-                <Link href="/" className="text-neutral-300 hover:text-white">
-                  Back home
+                  See your collection
                 </Link>
               </div>
-            </div>
-          ) : !authenticated ? (
-            <button
-              onClick={login}
-              disabled={!claimable}
-              className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium"
-            >
-              Sign in to claim
-            </button>
-          ) : !smartClient ? (
-            <div className="text-sm text-neutral-400 text-center">
-              Preparing smart wallet...
-            </div>
-          ) : (
-            <button
-              onClick={handleClaim}
-              disabled={!claimable || status.kind === "claiming"}
-              className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium"
-            >
-              {status.kind === "claiming"
-                ? "Claiming..."
-                : settled
-                  ? "Unavailable"
+            ) : !authenticated ? (
+              <button
+                onClick={login}
+                disabled={!openable}
+                className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
+              >
+                {settled
+                  ? "Already opened"
                   : expired
                     ? "Expired"
-                    : "Claim this NFT"}
-            </button>
-          )}
+                    : "Sign in to open"}
+              </button>
+            ) : !smartClient ? (
+              <div className="text-sm text-neutral-400 text-center py-2">
+                Getting things ready...
+              </div>
+            ) : (
+              <button
+                onClick={handleClaim}
+                disabled={!openable || status.kind === "claiming"}
+                className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
+              >
+                {status.kind === "claiming"
+                  ? "Opening..."
+                  : settled
+                    ? "Already opened"
+                    : expired
+                      ? "Expired"
+                      : "Open"}
+              </button>
+            )}
 
-          {status.kind === "error" ? (
-            <div className="mt-4 rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-              {status.message}
-            </div>
-          ) : null}
-        </>
-      )}
+            {status.kind === "error" ? (
+              <div className="rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                {status.message}
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
     </main>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-neutral-400">{label}</span>
-      <span className="font-mono">{value}</span>
-    </div>
   );
 }

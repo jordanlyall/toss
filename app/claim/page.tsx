@@ -5,8 +5,8 @@ type PageProps = {
   searchParams: { id?: string };
 };
 
-const TITLE = "You got an NFT";
-const DESCRIPTION = "Claim this for free. No gas, no wallet needed.";
+const TITLE = "You got a Toss";
+const DESCRIPTION = "Open to keep it. Free. Takes seconds.";
 
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const idParam = searchParams.id;

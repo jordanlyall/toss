@@ -87,20 +87,20 @@ export async function GET(req: Request) {
 
   const headline =
     state === "ready"
-      ? "You got an NFT"
+      ? "You got a Toss"
       : state === "claimed"
-        ? "Already claimed"
+        ? "Already opened"
         : state === "expired"
           ? "Link expired"
           : "Toss";
   const subline =
     state === "ready"
-      ? "Claim free. No gas. No wallet needed."
+      ? "Open to keep it. Free. Takes seconds."
       : state === "claimed"
-        ? "This NFT has already been picked up."
+        ? "Someone already opened this one."
         : state === "expired"
-          ? "Ask the sender for a new link."
-          : "Send NFTs by link. Receiver pays no gas.";
+          ? "Ask the sender for a fresh link."
+          : "Send a Toss by link.";
 
   const ACCENT = state === "ready" ? "#6a9bcc" : "#8a8882";
   const dimmed = state !== "ready";

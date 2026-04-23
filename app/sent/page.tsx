@@ -23,10 +23,10 @@ function StatusPill({ status }: { status: SentClaim["status"] }) {
       "bg-neutral-900 text-neutral-400 border-neutral-800",
   };
   const label = {
-    pending: "Pending",
-    claimed: "Claimed",
+    pending: "Sent",
+    claimed: "Opened",
     expired: "Expired",
-    revoked: "Revoked",
+    revoked: "Returned",
   }[status];
   return (
     <span
@@ -60,7 +60,7 @@ export default function SentPage() {
       const list = await loadSentClaims(publicClient, address);
       setClaims(list);
     } catch (err: any) {
-      setError(err?.shortMessage || err?.message || "Could not load claims");
+      setError(err?.shortMessage || err?.message || "Could not load your Tosses");
       setClaims([]);
     }
   }, [publicClient, address]);
@@ -84,7 +84,7 @@ export default function SentPage() {
       await publicClient.waitForTransactionReceipt({ hash });
       await refresh();
     } catch (err: any) {
-      setError(err?.shortMessage || err?.message || "Revoke failed");
+      setError(err?.shortMessage || err?.message || "Could not take it back");
     } finally {
       setRevoking(null);
     }
@@ -148,11 +148,10 @@ export default function SentPage() {
           <div className="pt-16 pb-8 text-center space-y-6">
             <div className="space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Your outbound links
+                Your sent Tosses
               </h1>
               <p className="text-neutral-400 text-sm max-w-sm mx-auto">
-                Sign in to see everything you've sent and the status of each
-                claim.
+                Sign in to see what you've sent and what's been opened.
               </p>
             </div>
             <button
@@ -164,27 +163,29 @@ export default function SentPage() {
           </div>
         ) : claims === null ? (
           <div className="pt-10 text-center text-sm text-neutral-400">
-            Loading your claims...
+            Loading...
           </div>
         ) : claims.length === 0 ? (
           <div className="pt-10 pb-8 text-center space-y-5">
             <div className="space-y-1">
               <div className="text-neutral-300 text-base">Nothing sent yet</div>
               <div className="text-neutral-500 text-sm">
-                Your outbound claim links will appear here.
+                Tosses you send will appear here.
               </div>
             </div>
             <Link
               href="/send"
               className="inline-block rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-3 text-sm font-medium min-h-[44px]"
             >
-              Send an NFT
+              Send a Toss
             </Link>
           </div>
         ) : (
           <>
             <div className="flex items-center justify-between text-xs text-neutral-500 mb-4">
-              <span>{claims.length} outbound</span>
+              <span>
+                {claims.length} sent
+              </span>
               <button
                 onClick={() => void refresh()}
                 className="text-neutral-400 hover:text-white"
@@ -219,10 +220,10 @@ export default function SentPage() {
                         {c.status === "pending"
                           ? formatExpiry(c.expiresAt)
                           : c.status === "claimed" && c.recipient
-                            ? `to ${shortenAddr(c.recipient)}`
+                            ? `by ${shortenAddr(c.recipient)}`
                             : c.status === "expired"
                               ? "Link no longer valid"
-                              : "Returned to you"}
+                              : "Back in your collection"}
                       </div>
                     </div>
                     {c.status === "pending" ? (
@@ -231,7 +232,7 @@ export default function SentPage() {
                         disabled={isRevoking}
                         className="rounded-md border border-neutral-800 hover:border-neutral-600 disabled:opacity-50 px-3 py-1.5 text-xs text-neutral-300 min-h-11"
                       >
-                        {isRevoking ? "Revoking..." : "Revoke"}
+                        {isRevoking ? "Returning..." : "Take back"}
                       </button>
                     ) : null}
                   </li>
@@ -249,7 +250,7 @@ export default function SentPage() {
 
         <div className="mt-10 text-center text-xs text-neutral-600">
           <Link href="/send" className="hover:text-neutral-300">
-            Send another NFT
+            Send another
           </Link>
         </div>
       </div>

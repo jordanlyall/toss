@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { usePublicClient } from "wagmi";
-import { encodeFunctionData, formatEther, type Address } from "viem";
+import { encodeFunctionData, type Address } from "viem";
 import { baseSepolia } from "wagmi/chains";
 import Link from "next/link";
 import {
@@ -37,7 +37,6 @@ export default function SendPage() {
   const [mint, setMint] = useState<MintStatus>({ kind: "idle" });
   const [ownedIds, setOwnedIds] = useState<bigint[]>([]);
   const [ownedLoaded, setOwnedLoaded] = useState(false);
-  const [balance, setBalance] = useState<bigint | null>(null);
   const [activeTokenId, setActiveTokenId] = useState<bigint | null>(null);
 
   async function refreshOwned(addr: Address) {
@@ -59,18 +58,9 @@ export default function SendPage() {
     }
   }
 
-  async function refreshBalance(addr: Address) {
-    if (!publicClient) return;
-    try {
-      const bal = await publicClient.getBalance({ address: addr });
-      setBalance(bal);
-    } catch {}
-  }
-
   useEffect(() => {
     if (!address || !publicClient) return;
     void refreshOwned(address);
-    void refreshBalance(address);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, publicClient]);
 
@@ -105,13 +95,13 @@ export default function SendPage() {
         tokenId = BigInt(log.topics[3]!);
         break;
       }
-      if (tokenId === null) throw new Error("Could not find tokenId in logs");
+      if (tokenId === null) throw new Error("Could not confirm new Toss");
       setOwnedIds((prev) => Array.from(new Set([...prev, tokenId!])));
       setMint({ kind: "idle" });
     } catch (err: any) {
       setMint({
         kind: "error",
-        message: err?.shortMessage || err?.message || "Mint failed",
+        message: err?.shortMessage || err?.message || "Could not make a Toss",
       });
     }
   }
@@ -152,11 +142,11 @@ export default function SendPage() {
                 <button
                   onClick={handleMint}
                   disabled={isMinting}
-                  aria-label="Mint NFT"
+                  aria-label="New Toss"
                   className="min-h-11 min-w-11 rounded-full border border-neutral-800 hover:border-neutral-600 disabled:opacity-50 px-3 text-sm flex items-center gap-1"
                 >
                   {isMinting ? (
-                    <span className="text-xs">Minting...</span>
+                    <span className="text-xs">Making...</span>
                   ) : (
                     <>
                       <svg
@@ -172,7 +162,7 @@ export default function SendPage() {
                           strokeLinecap="round"
                         />
                       </svg>
-                      <span className="text-xs">Mint</span>
+                      <span className="text-xs">New</span>
                     </>
                   )}
                 </button>
@@ -207,48 +197,41 @@ export default function SendPage() {
           <div className="pt-16 pb-8 text-center space-y-6">
             <div className="space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Send an NFT by link
+                Send a Toss
               </h1>
               <p className="text-neutral-400 text-sm max-w-sm mx-auto">
-                Sign in, mint a demo token, then text a claim link to anyone.
-                No gas.
+                Sign in, make one, and text a link. It's free.
               </p>
             </div>
             <button
               onClick={login}
               className="w-full max-w-xs mx-auto rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium min-h-[52px]"
             >
-              Sign in to send
+              Sign in
             </button>
           </div>
         ) : !smartClient ? (
           <div className="pt-16 text-center text-sm text-neutral-400">
-            Preparing smart wallet...
+            Getting things ready...
           </div>
         ) : (
           <>
-            {/* Balance chip — compact, below header */}
             <div className="flex items-center justify-between text-xs text-neutral-500 mb-4">
-              <span>Your NFTs</span>
-              <span className="font-mono">
-                {balance !== null
-                  ? `${Number(formatEther(balance)).toFixed(4)} ETH`
-                  : "..."}
-              </span>
+              <span>Your Tosses</span>
             </div>
 
             {!ownedLoaded ? (
               <div className="pt-10 pb-8 text-center text-sm text-neutral-500">
-                Loading your NFTs...
+                Loading...
               </div>
             ) : ownedIds.length === 0 ? (
               <div className="pt-10 pb-8 text-center space-y-5">
                 <div className="space-y-1">
                   <div className="text-neutral-300 text-base">
-                    No NFTs yet
+                    Nothing here yet
                   </div>
                   <div className="text-neutral-500 text-sm">
-                    Mint a demo token to get started.
+                    Make your first Toss to get started.
                   </div>
                 </div>
                 <button
@@ -256,7 +239,7 @@ export default function SendPage() {
                   disabled={!canMint || isMinting}
                   className="w-full max-w-xs mx-auto rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
                 >
-                  {isMinting ? "Minting..." : "Mint your first NFT"}
+                  {isMinting ? "Making..." : "Make your first Toss"}
                 </button>
                 {mint.kind === "error" ? (
                   <div className="max-w-sm mx-auto rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
@@ -272,7 +255,7 @@ export default function SendPage() {
                       <button
                         onClick={() => setActiveTokenId(id)}
                         className="group w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl"
-                        aria-label={`Send token #${id.toString()}`}
+                        aria-label={`Send Toss #${id.toString()}`}
                       >
                         <div className="relative">
                           <NFTPreview
@@ -305,11 +288,11 @@ export default function SendPage() {
 
             <div className="mt-10 flex items-center justify-center gap-4 text-xs text-neutral-600">
               <Link href="/sent" className="hover:text-neutral-300">
-                View sent links
+                Sent
               </Link>
               <span className="text-neutral-800">·</span>
               <Link href="/claim" className="hover:text-neutral-300">
-                Have a link? Open Claim
+                Have a link? Open
               </Link>
             </div>
           </>

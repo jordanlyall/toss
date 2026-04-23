@@ -79,7 +79,7 @@ export default function Landing() {
         tokenId = BigInt(log.topics[3]!);
         break;
       }
-      if (tokenId === null) throw new Error("Mint logs missing tokenId");
+      if (tokenId === null) throw new Error("Could not confirm the new Toss");
 
       const approved = (await publicClient.readContract({
         address: DEMO_NFT_ADDRESS,
@@ -176,9 +176,9 @@ export default function Landing() {
   const senderLabel = useMemo(() => {
     switch (state.step) {
       case "minting":
-        return "Minting demo NFT...";
+        return "Making a Toss...";
       case "approving":
-        return "Approving escrow...";
+        return "Getting ready...";
       case "depositing":
         return "Sealing the link...";
       case "sent":
@@ -186,14 +186,14 @@ export default function Landing() {
       case "claimed":
         return "Link sent";
       default:
-        return "Tap to mint and send";
+        return "Tap to send one";
     }
   }, [state.step]);
 
   const recipientLabel = useMemo(() => {
-    if (state.step === "claimed") return "You own it";
-    if (state.step === "claiming") return "Claiming...";
-    if (state.step === "sent") return "Tap to open link";
+    if (state.step === "claimed") return "It's yours";
+    if (state.step === "claiming") return "Opening...";
+    if (state.step === "sent") return "Tap to open";
     return "Waiting for a link";
   }, [state.step]);
 
@@ -210,8 +210,8 @@ export default function Landing() {
           <Link href="/send" className="hover:text-white">
             Send
           </Link>
-          <Link href="/claim" className="hover:text-white">
-            Claim
+          <Link href="/sent" className="hover:text-white">
+            Sent
           </Link>
           <a
             href={REPO_URL}
@@ -226,11 +226,11 @@ export default function Landing() {
 
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-10 text-center">
         <h1 className="text-5xl md:text-6xl font-semibold tracking-tight mb-4">
-          Text a link. Tap. Own.
+          Text a link. Tap. Keep it.
         </h1>
         <p className="text-neutral-400 text-lg max-w-xl mx-auto">
-          Send an NFT to anyone with just a link. No wallet, no gas. Sign in
-          with email or phone, claim, done.
+          Send a Toss to anyone with just a link. Free. No app. Sign in with
+          email or phone to keep what you got.
         </p>
       </section>
 
@@ -252,9 +252,9 @@ export default function Landing() {
               !authenticated
                 ? "Sign in"
                 : !smartClient
-                  ? "Preparing wallet..."
+                  ? "Getting ready..."
                   : state.step === "idle"
-                    ? "Mint and send"
+                    ? "Send a Toss"
                     : state.step === "error"
                       ? "Try again"
                       : state.step === "sent" || state.step === "claimed"
@@ -290,11 +290,11 @@ export default function Landing() {
             onPrimary={state.step === "sent" && smartClient ? runClaim : undefined}
             primaryLabel={
               state.step === "claimed"
-                ? "Claimed"
+                ? "Opened"
                 : state.step === "claiming"
-                  ? "Claiming..."
+                  ? "Opening..."
                   : state.step === "sent"
-                    ? "Open link"
+                    ? "Open"
                     : "Waiting"
             }
             primaryBusy={state.step === "claiming"}
@@ -310,55 +310,33 @@ export default function Landing() {
 
         {!deployed ? (
           <div className="mt-6 max-w-xl mx-auto rounded-lg border border-amber-900 bg-amber-950/30 px-4 py-3 text-sm text-amber-200 text-center">
-            Contracts not deployed. Run{" "}
-            <code className="font-mono">npm run deploy:sepolia</code> to enable
-            the demo.
+            Not ready yet. Check back in a minute.
           </div>
         ) : null}
       </section>
 
       <section className="max-w-3xl mx-auto px-6 pb-24 text-center">
         <h2 className="text-2xl font-semibold tracking-tight mb-2">
-          Try the real thing
+          Try it yourself
         </h2>
         <p className="text-neutral-400 mb-6 text-sm">
-          Use the production pages to send or claim outside the demo frame.
+          Send one, or open a link someone sent you.
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link
             href="/send"
             className="rounded-lg bg-white text-black px-5 py-3 text-sm font-medium"
           >
-            Send an NFT
+            Send a Toss
           </Link>
           <Link
             href="/claim"
             className="rounded-lg border border-neutral-700 hover:border-neutral-500 px-5 py-3 text-sm"
           >
-            Paste a claim link
+            Have a link? Open
           </Link>
         </div>
         <div className="mt-8 text-xs text-neutral-500 space-x-4">
-          {ESCROW_ADDRESS ? (
-            <a
-              className="hover:text-neutral-300"
-              href={`https://sepolia.basescan.org/address/${ESCROW_ADDRESS}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Escrow contract
-            </a>
-          ) : null}
-          {DEMO_NFT_ADDRESS ? (
-            <a
-              className="hover:text-neutral-300"
-              href={`https://sepolia.basescan.org/address/${DEMO_NFT_ADDRESS}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              DemoNFT contract
-            </a>
-          ) : null}
           <a
             className="hover:text-neutral-300"
             href={REPO_URL}
@@ -440,7 +418,7 @@ function Phone({
 
           {state.step === "claimed" && side === "recipient" ? (
             <div className="text-xs text-emerald-300">
-              The NFT is now in your wallet. No gas.
+              Saved to your collection.
             </div>
           ) : null}
         </div>
@@ -501,7 +479,7 @@ function Thread({
             maxWidth: "100%",
           }}
         >
-          <div className="text-[13px]">You got an NFT. Claim it here:</div>
+          <div className="text-[13px]">You got a Toss. Open it here:</div>
           <div className="text-[11px] opacity-80 break-all mt-1">
             {url ? shortenUrl(url) : "toss.app/claim#..."}
           </div>
