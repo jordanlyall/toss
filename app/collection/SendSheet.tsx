@@ -47,7 +47,6 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [mounted, setMounted] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const traits = useMemo(
     () => (tokenId !== null ? deriveTraits(tokenId) : null),
@@ -56,12 +55,9 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
   const open = tokenId !== null;
 
-  // Reset phase and details disclosure whenever a new token opens.
+  // Reset phase whenever a new token opens.
   useEffect(() => {
-    if (tokenId !== null) {
-      setPhase({ kind: "idle" });
-      setDetailsOpen(false);
-    }
+    if (tokenId !== null) setPhase({ kind: "idle" });
   }, [tokenId]);
 
   // Animate in/out: mount as soon as a token is selected, keep mounted
@@ -307,6 +303,11 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
                 <div className="text-sm text-neutral-200">
                   Note #{tokenId.toString()}, 2026
                 </div>
+                {traits ? (
+                  <div className="text-xs text-neutral-500 pt-1">
+                    {traits.palette} palette · {traits.gridSize} × {traits.gridSize}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -419,37 +420,6 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
                 >
                   Try again
                 </button>
-              </div>
-            ) : null}
-
-            {traits ? (
-              <div className="-mx-5 -mb-6 pt-2 border-t border-neutral-900">
-                <button
-                  type="button"
-                  onClick={() => setDetailsOpen((v) => !v)}
-                  aria-expanded={detailsOpen}
-                  className="w-full px-5 py-3 text-center text-xs uppercase tracking-[0.14em] text-neutral-500 hover:text-neutral-300 min-h-11"
-                >
-                  {detailsOpen ? "Hide details" : "Details"}
-                </button>
-                {detailsOpen ? (
-                  <dl className="px-5 pb-5 pt-1 space-y-2 text-sm">
-                    <div className="flex justify-between items-baseline">
-                      <dt className="text-neutral-500">Palette</dt>
-                      <dd className="text-neutral-200">{traits.palette}</dd>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <dt className="text-neutral-500">Grid</dt>
-                      <dd className="text-neutral-200">
-                        {traits.gridSize} × {traits.gridSize}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <dt className="text-neutral-500">Chain</dt>
-                      <dd className="text-neutral-200">Base</dd>
-                    </div>
-                  </dl>
-                ) : null}
               </div>
             ) : null}
           </div>
