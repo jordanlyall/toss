@@ -14,7 +14,7 @@ Front-running the claim transaction is a known limitation for mainnet use. See t
 
 ## What Field Notes is
 
-A growing series of small on-chain compositions, drawn from a vocabulary of eight marks and six palettes. Fully on-chain SVG, deterministic from tokenId. Free to make. Made to be given.
+A growing series of small on-chain compositions, drawn from a vocabulary of eight marks and six palettes. Fully on-chain SVG, deterministic from tokenId. Free to make. Made to be shared.
 
 The art and the infra are one repo right now because Field Notes is the first thing shipped on top of Toss. Either could be forked independently.
 

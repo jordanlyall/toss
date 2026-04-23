@@ -12,7 +12,7 @@ const SITE_URL =
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Field Notes — small compositions, made to be given.",
+  title: "Field Notes — small compositions, made to be shared.",
   description: "On-chain glyph grids by Jordan Lyall. Free to make. Sent by link.",
 };
 
