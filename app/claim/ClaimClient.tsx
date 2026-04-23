@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { usePublicClient } from "wagmi";
@@ -112,6 +112,20 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
       });
     }
   }
+
+  // Auto-claim as soon as everything needed is in place. The link IS the
+  // claim — the old explicit Open tap was ceremony. Fires once per page load;
+  // on error the user falls through to a manual Open button to retry.
+  const claimAttempted = useRef(false);
+  useEffect(() => {
+    if (claimAttempted.current) return;
+    if (!parsed || !escrow || !smartClient || !publicClient) return;
+    if (escrow.settled || expired) return;
+    if (status.kind !== "idle") return;
+    claimAttempted.current = true;
+    void handleClaim();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsed, escrow, smartClient, publicClient, expired, status.kind]);
 
   if (!ready || !fragmentRead) {
     return (
@@ -235,19 +249,34 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
                 Getting things ready...
               </div>
             ) : (
-              <button
-                onClick={handleClaim}
-                disabled={!openable || status.kind === "claiming"}
-                className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
-              >
-                {status.kind === "claiming"
+              (() => {
+                // "Opening..." covers two moments: the brief idle window
+                // before auto-claim fires, AND the actual claiming tx. A
+                // visible "Open" button would flash for a frame without
+                // that merge. After an error the button becomes "Try again"
+                // so the user can retry manually.
+                const autoWillFire =
+                  status.kind === "idle" && openable && !!smartClient;
+                const isBusy = status.kind === "claiming" || autoWillFire;
+                const label = isBusy
                   ? "Opening..."
                   : settled
                     ? "Already opened"
                     : expired
                       ? "Expired"
-                      : "Open"}
-              </button>
+                      : status.kind === "error"
+                        ? "Try again"
+                        : "Open";
+                return (
+                  <button
+                    onClick={handleClaim}
+                    disabled={!openable || isBusy}
+                    className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
+                  >
+                    {label}
+                  </button>
+                );
+              })()
             )}
 
             {status.kind === "error" ? (
