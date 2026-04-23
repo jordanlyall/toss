@@ -14,11 +14,11 @@ export function hashSecret(secret: `0x${string}`): `0x${string}` {
 
 /**
  * Build a shareable claim URL.
- * - id goes in query string so the server can read it for OG metadata.
+ * - id goes in the path so the server can read it for OG metadata.
  * - secret stays in the fragment, never sent to server.
  */
 export function buildClaimUrl(origin: string, id: bigint, secret: `0x${string}`): string {
-  return `${origin}/claim?id=${id.toString()}#s=${secret}`;
+  return `${origin}/t/${id.toString()}#s=${secret}`;
 }
 
 /** Parse the secret from a claim URL fragment (client-only). */

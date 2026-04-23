@@ -7,7 +7,7 @@ import { usePublicClient } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { encodeFunctionData } from "viem";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { parseEscrowId, parseSecretFragment } from "@/lib/claim";
 import { NFTPreview } from "@/app/components/NFTPreview";
@@ -34,6 +34,9 @@ export default function ClaimClient() {
   const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const searchParams = useSearchParams();
+  const params = useParams();
+  const routeId =
+    typeof params?.id === "string" ? (params.id as string) : null;
 
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [fragmentRead, setFragmentRead] = useState(false);
@@ -43,7 +46,7 @@ export default function ClaimClient() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const id = parseEscrowId(searchParams.get("id"));
+    const id = parseEscrowId(routeId ?? searchParams.get("id"));
     const secret = parseSecretFragment(window.location.hash);
     if (id !== null && secret) {
       setParsed({ id, secret });
@@ -51,7 +54,7 @@ export default function ClaimClient() {
       setParsed(null);
     }
     setFragmentRead(true);
-  }, [searchParams]);
+  }, [routeId, searchParams]);
 
   useEffect(() => {
     if (!parsed || !publicClient || !ESCROW_ADDRESS) return;
