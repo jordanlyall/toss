@@ -62,7 +62,7 @@ export default function SentPage() {
       const list = await loadSentClaims(publicClient, address);
       setClaims(list);
     } catch (err: any) {
-      setError(err?.shortMessage || err?.message || "Could not load your Tosses");
+      setError(err?.shortMessage || err?.message || "Could not load your Field Notes");
       setClaims([]);
     }
   }, [publicClient, address]);
@@ -89,7 +89,7 @@ export default function SentPage() {
       haptic.success();
     } catch (err: any) {
       haptic.error();
-      setError(err?.shortMessage || err?.message || "Could not take it back");
+      setError(err?.shortMessage || err?.message || "Could not load your Field Notes");
     } finally {
       setRevoking(null);
     }
@@ -139,7 +139,7 @@ export default function SentPage() {
           <div className="pt-16 pb-8 text-center space-y-6">
             <div className="space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Your sent Tosses
+                Your sent Field Notes
               </h1>
               <p className="text-neutral-400 text-sm max-w-sm mx-auto">
                 Sign in to see what you've sent and what's been opened.
@@ -172,14 +172,14 @@ export default function SentPage() {
             <div className="space-y-1">
               <div className="text-neutral-300 text-base">Nothing sent yet</div>
               <div className="text-neutral-500 text-sm">
-                Tosses you send will appear here.
+                Field Notes you send will appear here.
               </div>
             </div>
             <Link
               href="/collection"
               className="inline-block rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-3 text-sm font-medium min-h-[44px]"
             >
-              Send a Toss
+              Send a Field Note
             </Link>
           </div>
         ) : (
@@ -214,7 +214,7 @@ export default function SentPage() {
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-neutral-200">
-                          Toss #{c.tokenId.toString()}
+                          Note #{c.tokenId.toString()}
                         </span>
                         <StatusPill status={c.status} />
                       </div>

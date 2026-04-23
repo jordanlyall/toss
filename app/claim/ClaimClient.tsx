@@ -160,7 +160,7 @@ export default function ClaimClient() {
                     ? "Already opened"
                     : expired
                       ? "Link expired"
-                      : "You got a Toss"}
+                      : "You got a Field Note"}
               </h1>
               {status.kind === "claimed" ? (
                 <p className="text-neutral-400 text-sm">
