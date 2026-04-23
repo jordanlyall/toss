@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { createPublicClient, http, type Address } from "viem";
-import { baseSepolia, mainnet } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "./contracts";
+import { getDisplayNameForAddress } from "./privyServer";
 
 const DEFAULT_TITLE = "You got a Toss";
 const DEFAULT_DESCRIPTION = "Open to keep it. Free. Takes seconds.";
@@ -14,21 +15,6 @@ type Escrow = {
   expiresAt: bigint;
   settled: boolean;
 };
-
-async function resolveSenderEns(sender: Address): Promise<string | null> {
-  try {
-    const client = createPublicClient({
-      chain: mainnet,
-      transport: http(
-        process.env.NEXT_PUBLIC_MAINNET_RPC || "https://cloudflare-eth.com",
-      ),
-    });
-    const name = await client.getEnsName({ address: sender });
-    return name ?? null;
-  } catch {
-    return null;
-  }
-}
 
 async function resolveSender(id: bigint): Promise<Address | null> {
   if (!ESCROW_ADDRESS) return null;
@@ -52,7 +38,9 @@ async function resolveSender(id: bigint): Promise<Address | null> {
   }
 }
 
-export async function buildClaimMetadata(idParam: string | undefined): Promise<Metadata> {
+export async function buildClaimMetadata(
+  idParam: string | undefined,
+): Promise<Metadata> {
   const ogUrl = idParam
     ? `/api/og?id=${encodeURIComponent(idParam)}`
     : "/api/og";
@@ -64,8 +52,8 @@ export async function buildClaimMetadata(idParam: string | undefined): Promise<M
       const id = BigInt(idParam);
       const sender = await resolveSender(id);
       if (sender) {
-        const ens = await resolveSenderEns(sender);
-        if (ens) title = `${ens} sent you a Toss`;
+        const name = await getDisplayNameForAddress(sender);
+        if (name) title = `${name} sent you a Toss`;
       }
     } catch {
       // Invalid id -> keep default title.

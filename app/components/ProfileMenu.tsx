@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 
 function shorten(addr: string): string {
@@ -78,6 +79,15 @@ export function ProfileMenu({ address }: { address: string }) {
                 </div>
               </div>
             </div>
+            <div className="h-px bg-neutral-900" />
+            <Link
+              href="/settings"
+              onClick={() => setOpen(false)}
+              role="menuitem"
+              className="block w-full text-left px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-900 hover:text-white min-h-11"
+            >
+              Settings
+            </Link>
             <div className="h-px bg-neutral-900" />
             <button
               onClick={() => {
