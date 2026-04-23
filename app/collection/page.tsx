@@ -227,7 +227,7 @@ export default function CollectionPage() {
                     Nothing here yet
                   </div>
                   <div className="text-neutral-500 text-sm">
-                    Make your first Toss to get started.
+                    Make your first Field Note to get started.
                   </div>
                 </div>
                 <button
