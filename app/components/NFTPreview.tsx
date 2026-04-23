@@ -42,9 +42,10 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
     let cancelled = false;
     setImageUri(null);
     setErrored(false);
-    (async () => {
+
+    async function load(attempt: number): Promise<void> {
       try {
-        const uri = (await publicClient.readContract({
+        const uri = (await publicClient!.readContract({
           address: contract,
           abi: DEMO_NFT_ABI,
           functionName: "tokenURI",
@@ -52,12 +53,29 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
         })) as string;
         if (cancelled) return;
         const img = extractImage(uri);
-        if (img) setImageUri(img);
-        else setErrored(true);
-      } catch {
-        if (!cancelled) setErrored(true);
+        if (img) {
+          setImageUri(img);
+        } else {
+          console.warn(
+            `NFTPreview: unrecognized tokenURI format for token ${tokenId}`,
+            uri.slice(0, 80),
+          );
+          setErrored(true);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (attempt < 2) {
+          // Back off briefly and try again — public RPC rate limits are bursty.
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+          if (!cancelled) return load(attempt + 1);
+          return;
+        }
+        console.warn(`NFTPreview: tokenURI failed for token ${tokenId}`, err);
+        setErrored(true);
       }
-    })();
+    }
+
+    void load(0);
     return () => {
       cancelled = true;
     };
