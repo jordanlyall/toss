@@ -1,23 +1,38 @@
 # Toss
 
-Send an NFT by link. Any phone number, any email, no wallet required on the receiving side.
+An open-source pattern for sending free-mint, on-chain art by link.
 
-Live on Base Sepolia. Next.js 14 + wagmi + viem + Privy.
+Live demo: **[toss.lol](https://toss.lol)** — the first release on Toss is **Field Notes**, an open-ended series of on-chain glyph grids by [Jordan Lyall](https://x.com/jordanlyall).
 
-## How it works
+## What Toss is
 
 - **Escrow by secret hash.** Sender deposits the NFT into `ClaimableNFTEscrow` along with the keccak256 of a random 32-byte secret. The NFT is held by the contract.
-- **Link carries the secret.** The secret is placed in the URL fragment (`#s=0x...`), which never leaves the browser. Share it over iMessage, email, anything.
-- **Recipient claims.** Anyone holding the secret can call `claim(id, secret)` to transfer the NFT to themselves. The recipient signs in with Privy (email or SMS), which auto-creates an embedded wallet.
+- **Link carries the secret.** The secret lives in the URL fragment (`#s=0x...`), which never reaches any server. Share the link over iMessage, email, anything.
+- **Recipient claims.** Anyone holding the secret can call `claim(id, secret)` to transfer the NFT to themselves. The recipient signs in with Privy (email, phone, or passkey); Privy auto-creates an embedded smart wallet.
 
 Front-running the claim transaction is a known limitation for mainnet use. See the contract comments for the production mitigation (bind the recipient into a signature).
 
-## Setup
+## What Field Notes is
+
+A growing series of small on-chain compositions, drawn from a vocabulary of eight marks and six palettes. Fully on-chain SVG, deterministic from tokenId. Free to make. Made to be given.
+
+The art and the infra are one repo right now because Field Notes is the first thing shipped on top of Toss. Either could be forked independently.
+
+## Stack
+
+- Next.js 14 (App Router)
+- TypeScript + Tailwind
+- wagmi v2 + viem
+- `@privy-io/react-auth` + `@privy-io/wagmi` + `@privy-io/server-auth`
+- Hardhat for contracts
+- Base Sepolia (chainId 84532)
+
+## Run locally
 
 ### 1. Install
 
 ```bash
-git clone <repo>
+git clone https://github.com/jordanlyall/toss.git
 cd toss
 npm install
 ```
@@ -31,76 +46,55 @@ cp .env.local.example .env.local
 Fill in:
 
 - `DEPLOYER_PRIVATE_KEY` — a funded Base Sepolia key for deploys and the mint script.
-- `NEXT_PUBLIC_PRIVY_APP_ID` — from the Privy dashboard, see step 5.
+- `NEXT_PUBLIC_PRIVY_APP_ID` — from the Privy dashboard (see step 5).
+- `PRIVY_APP_SECRET` — Privy app secret (server-side only, for custom metadata + OG resolver). Optional for local dev; features that use it degrade gracefully when absent.
 
 Fund the deployer at https://www.alchemy.com/faucets/base-sepolia.
 
-### 3. Compile
+### 3. Compile and deploy
 
 ```bash
 npm run compile
-```
-
-### 4. Deploy to Base Sepolia
-
-```bash
 npm run deploy:sepolia
 ```
 
-This deploys `ClaimableNFTEscrow` and `DemoNFT`, then writes both addresses to `lib/deployed.json`. The frontend reads from that file.
+Writes the escrow + NFT addresses to `lib/deployed.json`.
 
-### 5. Privy
+### 4. Privy
 
 At https://dashboard.privy.io:
 
-1. Create a new app.
-2. Login methods: enable **Email**, **SMS**, and **Wallet**.
-3. Default chain: **Base Sepolia**.
+1. Create an app.
+2. Login methods: enable **Email**, **SMS**, **Passkey**.
+3. Default chain: **Base Sepolia**. Enable **Smart Wallets** (Kernel).
 4. Embedded wallets: **Create on login for users without wallets**.
-5. Allowed origins: add `http://localhost:3000` and your Vercel production URL.
-6. Copy the App ID into `NEXT_PUBLIC_PRIVY_APP_ID` in `.env.local`.
+5. Allowed origins: add `http://localhost:3000` and your production URL.
+6. Copy the App ID into `NEXT_PUBLIC_PRIVY_APP_ID`.
 
-### 6. Run locally
+### 5. Run
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000. The landing page should render the side-by-side phone demo.
-
-### 7. Mint demo NFTs (optional)
+### 6. Mint demo NFTs (optional)
 
 ```bash
 MINT_COUNT=5 npm run mint:sepolia
 ```
 
-### 8. Deploy to Vercel
-
-```bash
-vercel --prod
-```
-
-Then in the Vercel project settings:
-
-- Set `NEXT_PUBLIC_PRIVY_APP_ID`.
-- Optionally set `NEXT_PUBLIC_BASE_SEPOLIA_RPC` to a dedicated RPC.
-
-Add the production URL to your Privy app's allowed origins.
-
 ## Routes
 
-- `/` — marketing landing page with a live side-by-side demo (sender phone + iMessage thread + recipient phone).
-- `/collection` — your Tosses. Tap one to send. (Old `/send` redirects here.)
-- `/claim` — real recipient flow. Open the link, sign in, claim.
+- `/` — Field Notes homepage (art statement + CTA; Toss credit band)
+- `/collection` — Your Field Notes. Tap one to send. (Old `/send` 308-redirects here.)
+- `/sent` — Field Notes you've sent, with live status (Sent / Opened / Expired / Returned).
+- `/settings` — set a display name that appears on link previews.
+- `/t/[id]` — claim page. `/claim?id=N` legacy form still resolves.
 
-## Stack
+## Contracts (Base Sepolia)
 
-Do not substitute.
+Addresses in `lib/deployed.json`. ERC-721 is named `"Toss Glyph Grid"` on-chain — this is pre-reposition and will be updated on a future redeploy.
 
-- Next.js 14 (App Router)
-- TypeScript
-- Tailwind
-- wagmi v2 + viem (no ethers in the frontend)
-- `@privy-io/react-auth` + `@privy-io/wagmi`
-- Hardhat for contracts
-- Base Sepolia (chainId 84532)
+## License
+
+MIT. See [LICENSE](LICENSE).
