@@ -89,7 +89,7 @@ export default function SentPage() {
       haptic.success();
     } catch (err: any) {
       haptic.error();
-      setError(err?.shortMessage || err?.message || "Could not load your Field Notes");
+      setError(err?.shortMessage || err?.message || "Could not take it back");
     } finally {
       setRevoking(null);
     }

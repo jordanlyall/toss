@@ -143,8 +143,8 @@ export default function SettingsPage() {
                 className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-base text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600 min-h-[52px]"
               />
               <p className="text-xs text-neutral-500">
-                Shown on link previews when you send a Toss. Leave blank to
-                send anonymously.
+                Shown on link previews when you send a Field Note. Leave blank
+                to send anonymously.
               </p>
             </div>
 

@@ -151,7 +151,7 @@ export default function CollectionPage() {
   const contractsReady = !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS;
 
   return (
-    <main className="min-h-screen pb-20">
+    <main className="min-h-screen pb-8">
       {/* Top bar */}
       <header className="sticky top-0 z-20 bg-black/80 backdrop-blur border-b border-neutral-900">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
