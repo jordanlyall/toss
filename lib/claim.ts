@@ -12,21 +12,31 @@ export function hashSecret(secret: `0x${string}`): `0x${string}` {
   return keccak256(hexToBytes(secret));
 }
 
-/** Build a shareable claim URL. Secret is in the URL fragment, never sent to server. */
+/**
+ * Build a shareable claim URL.
+ * - id goes in query string so the server can read it for OG metadata.
+ * - secret stays in the fragment, never sent to server.
+ */
 export function buildClaimUrl(origin: string, id: bigint, secret: `0x${string}`): string {
-  return `${origin}/claim#id=${id.toString()}&s=${secret}`;
+  return `${origin}/claim?id=${id.toString()}#s=${secret}`;
 }
 
-/** Parse a claim URL fragment. */
-export function parseClaimFragment(fragment: string): { id: bigint; secret: `0x${string}` } | null {
+/** Parse the secret from a claim URL fragment (client-only). */
+export function parseSecretFragment(fragment: string): `0x${string}` | null {
   const f = fragment.startsWith("#") ? fragment.slice(1) : fragment;
   const params = new URLSearchParams(f);
-  const idStr = params.get("id");
   const secret = params.get("s");
-  if (!idStr || !secret) return null;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(secret)) return null;
+  if (!secret || !/^0x[0-9a-fA-F]{64}$/.test(secret)) return null;
+  return secret as `0x${string}`;
+}
+
+/** Parse an id string (from query param or elsewhere) into a bigint. */
+export function parseEscrowId(raw: string | null | undefined): bigint | null {
+  if (!raw) return null;
   try {
-    return { id: BigInt(idStr), secret: secret as `0x${string}` };
+    const n = BigInt(raw);
+    if (n < 0n) return null;
+    return n;
   } catch {
     return null;
   }
