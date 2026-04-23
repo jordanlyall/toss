@@ -36,6 +36,7 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [errored, setErrored] = useState(false);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!publicClient || !contract) return;
@@ -43,7 +44,17 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
     setImageUri(null);
     setErrored(false);
 
+    // Retry schedule in ms: 0, 500, 1200, 2500, 5000. Covers both bursty
+    // rate-limit 429s and RPC nodes that are a block behind for a freshly
+    // minted tokenId.
+    const DELAYS = [0, 500, 1200, 2500, 5000];
+
     async function load(attempt: number): Promise<void> {
+      if (cancelled) return;
+      if (DELAYS[attempt] > 0) {
+        await new Promise((r) => setTimeout(r, DELAYS[attempt]));
+        if (cancelled) return;
+      }
       try {
         const uri = (await publicClient!.readContract({
           address: contract,
@@ -64,12 +75,7 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
         }
       } catch (err) {
         if (cancelled) return;
-        if (attempt < 2) {
-          // Back off briefly and try again — public RPC rate limits are bursty.
-          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-          if (!cancelled) return load(attempt + 1);
-          return;
-        }
+        if (attempt + 1 < DELAYS.length) return load(attempt + 1);
         console.warn(`NFTPreview: tokenURI failed for token ${tokenId}`, err);
         setErrored(true);
       }
@@ -79,15 +85,35 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
     return () => {
       cancelled = true;
     };
-  }, [publicClient, contract, tokenId]);
+  }, [publicClient, contract, tokenId, nonce]);
 
   const sizeClass = SIZE_CLASS[size];
   const wrap = `${sizeClass} rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 ${className}`;
 
   if (errored) {
     return (
-      <div className={`${wrap} flex items-center justify-center text-xs text-neutral-600`}>
-        unavailable
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={(e) => {
+          e.stopPropagation();
+          setErrored(false);
+          setImageUri(null);
+          setNonce((n) => n + 1);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            setErrored(false);
+            setImageUri(null);
+            setNonce((n) => n + 1);
+          }
+        }}
+        className={`${wrap} flex flex-col items-center justify-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 cursor-pointer`}
+      >
+        <span>unavailable</span>
+        <span className="text-[10px] text-neutral-600">tap to retry</span>
       </div>
     );
   }
