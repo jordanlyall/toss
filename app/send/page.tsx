@@ -327,11 +327,7 @@ export default function SendPage() {
               </>
             )}
 
-            <div className="mt-10 flex items-center justify-center gap-4 text-xs text-neutral-600">
-              <Link href="/sent" className="hover:text-neutral-300">
-                Sent
-              </Link>
-              <span className="text-neutral-800">·</span>
+            <div className="mt-10 flex items-center justify-center text-xs text-neutral-600">
               <Link href="/claim" className="hover:text-neutral-300">
                 Have a link? Open
               </Link>
