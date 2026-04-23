@@ -12,6 +12,7 @@ import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { parseEscrowId, parseSecretFragment } from "@/lib/claim";
 import { NFTPreview } from "@/app/components/NFTPreview";
 import { haptic } from "@/lib/haptic";
+import { deriveTraits, PALETTE_INKS } from "@/lib/traits";
 
 type Parsed = { id: bigint; secret: `0x${string}` };
 
@@ -126,6 +127,44 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
     void handleClaim();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed, escrow, smartClient, publicClient, expired, status.kind]);
+
+  // Confetti on successful claim, colored in the piece's own ink palette.
+  // Fires once per claim, respects prefers-reduced-motion, and lazy-imports
+  // the library so it only loads when someone actually claims.
+  const confettiFired = useRef(false);
+  useEffect(() => {
+    if (confettiFired.current) return;
+    if (status.kind !== "claimed" || !escrow) return;
+    if (typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    confettiFired.current = true;
+    const colors = PALETTE_INKS[deriveTraits(escrow.tokenId).palette];
+    void import("canvas-confetti").then(({ default: confetti }) => {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        startVelocity: 45,
+        origin: { y: 0.7 },
+        colors,
+      });
+      setTimeout(() => {
+        confetti({
+          particleCount: 60,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0, y: 0.8 },
+          colors,
+        });
+        confetti({
+          particleCount: 60,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1, y: 0.8 },
+          colors,
+        });
+      }, 150);
+    });
+  }, [status.kind, escrow]);
 
   if (!ready || !fragmentRead) {
     return (
