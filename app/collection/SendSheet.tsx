@@ -176,10 +176,10 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
 
   async function handleShare(url: string) {
     setUndoDeadline(null); // Sharing commits — drop the undo window.
-    const text = "You got a Toss. Open it here:";
+    const text = "You got a Field Note. Open it here:";
     if (canNativeShare) {
       try {
-        await navigator.share({ url, title: "Toss", text });
+        await navigator.share({ url, title: "Field Note", text });
         return;
       } catch (err: any) {
         if (err?.name === "AbortError") return;
@@ -257,7 +257,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
           <div className="flex items-center justify-between px-5 pt-4 pb-2">
             <div className="w-10 h-1 rounded-full bg-neutral-800 mx-auto sm:hidden" />
             <div className="hidden sm:block text-sm text-neutral-400">
-              {ready ? "Ready to share" : "Send this Toss"}
+              {ready ? "Ready to share" : "Send this Field Note"}
             </div>
             <button
               onClick={onClose}
@@ -292,7 +292,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
             {tokenId !== null ? (
               <div className="text-center">
                 <div className="text-sm text-neutral-400">
-                  Toss #{tokenId.toString()}
+                  Note #{tokenId.toString()}
                 </div>
               </div>
             ) : null}

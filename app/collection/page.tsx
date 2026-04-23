@@ -126,7 +126,7 @@ export default function CollectionPage() {
         tokenId = BigInt(log.topics[3]!);
         break;
       }
-      if (tokenId === null) throw new Error("Could not confirm new Toss");
+      if (tokenId === null) throw new Error("Could not confirm the new Field Note");
       setOwnedIds((prev) => Array.from(new Set([...prev, tokenId!])));
       setMint({ kind: "idle" });
       haptic.success();
@@ -134,7 +134,7 @@ export default function CollectionPage() {
       haptic.error();
       setMint({
         kind: "error",
-        message: err?.shortMessage || err?.message || "Could not make a Toss",
+        message: err?.shortMessage || err?.message || "Could not make a Field Note",
       });
     }
   }
@@ -188,7 +188,7 @@ export default function CollectionPage() {
           <div className="pt-16 pb-8 text-center space-y-6">
             <div className="space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Send a Toss
+                Send a Field Note
               </h1>
               <p className="text-neutral-400 text-sm max-w-sm mx-auto">
                 Sign in, make one, and text a link. It's free.
@@ -208,7 +208,7 @@ export default function CollectionPage() {
         ) : (
           <>
             <div className="flex items-center justify-between text-xs text-neutral-500 mb-4">
-              <span>Your Tosses</span>
+              <span>Your Field Notes</span>
             </div>
 
             {!ownedLoaded ? (
@@ -235,7 +235,7 @@ export default function CollectionPage() {
                   disabled={!canMint || isMinting}
                   className="w-full max-w-xs mx-auto rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
                 >
-                  {isMinting ? "Making..." : "Make your first Toss"}
+                  {isMinting ? "Making..." : "Make your first Field Note"}
                 </button>
                 {mint.kind === "error" ? (
                   <div className="max-w-sm mx-auto rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
@@ -254,7 +254,7 @@ export default function CollectionPage() {
                           setActiveTokenId(id);
                         }}
                         className="group w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl"
-                        aria-label={`Send Toss #${id.toString()}`}
+                        aria-label={`Send Field Note #${id.toString()}`}
                       >
                         <div className="relative">
                           <NFTPreview
@@ -266,7 +266,7 @@ export default function CollectionPage() {
                         </div>
                         <div className="mt-2 px-0.5">
                           <span className="text-xs text-neutral-400">
-                            Toss #{id.toString()}
+                            Note #{id.toString()}
                           </span>
                         </div>
                       </button>
