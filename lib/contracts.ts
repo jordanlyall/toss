@@ -57,6 +57,13 @@ export const ESCROW_ABI = [
     ],
   },
   {
+    type: "function",
+    name: "nextId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
     type: "event",
     name: "Deposited",
     inputs: [

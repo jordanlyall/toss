@@ -12,111 +12,132 @@ export type SentClaim = {
   recipient: Address | null;
 };
 
-const DEPOSITED_EVENT = {
-  type: "event",
-  name: "Deposited",
-  inputs: [
-    { name: "id", type: "uint256", indexed: true },
-    { name: "sender", type: "address", indexed: true },
-    { name: "nftContract", type: "address", indexed: true },
-    { name: "tokenId", type: "uint256", indexed: false },
-    { name: "expiresAt", type: "uint64", indexed: false },
-  ],
-} as const;
+type EscrowStruct = {
+  sender: Address;
+  nftContract: Address;
+  tokenId: bigint;
+  secretHash: `0x${string}`;
+  expiresAt: bigint;
+  settled: boolean;
+};
 
-const CLAIMED_EVENT = {
-  type: "event",
-  name: "Claimed",
-  inputs: [
-    { name: "id", type: "uint256", indexed: true },
-    { name: "recipient", type: "address", indexed: true },
-  ],
-} as const;
+// Minimal IERC721.ownerOf for distinguishing claimed vs revoked on settled
+// escrows. Inlined so this module doesn't couple to a specific NFT ABI; any
+// ERC-721 in an escrow exposes ownerOf.
+const OWNER_OF_ABI = [
+  {
+    type: "function",
+    name: "ownerOf",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ type: "address" }],
+  },
+] as const;
 
-const REVOKED_EVENT = {
-  type: "event",
-  name: "Revoked",
-  inputs: [{ name: "id", type: "uint256", indexed: true }],
-} as const;
-
+/**
+ * Load every escrow created by `sender`, annotated with status and (for
+ * claimed escrows) the current token owner as the recipient.
+ *
+ * Why nextId iteration instead of event logs: the public Base Sepolia RPC
+ * (sepolia.base.org) refuses eth_getLogs with fromBlock: 0n because the
+ * range exceeds its limit. Same workaround pattern as lib/owned.ts. For a
+ * testnet demo with dozens of escrows this is cheap; mainnet promotion
+ * should switch to an indexer.
+ *
+ * For settled escrows, claimed vs revoked is disambiguated via ownerOf:
+ * if the token is back with the sender, it was revoked; otherwise it was
+ * claimed and the current owner is reported as the recipient. If the
+ * recipient later transfers the token, we'd show the new owner. Fine for
+ * testnet, not for production.
+ */
 export async function loadSentClaims(
   publicClient: PublicClient,
   sender: Address,
 ): Promise<SentClaim[]> {
   if (!ESCROW_ADDRESS) return [];
 
-  const [deposited, claimed, revoked] = await Promise.all([
-    publicClient.getLogs({
-      address: ESCROW_ADDRESS,
-      event: DEPOSITED_EVENT,
-      args: { sender },
-      fromBlock: 0n,
-    }),
-    publicClient.getLogs({
-      address: ESCROW_ADDRESS,
-      event: CLAIMED_EVENT,
-      fromBlock: 0n,
-    }),
-    publicClient.getLogs({
-      address: ESCROW_ADDRESS,
-      event: REVOKED_EVENT,
-      fromBlock: 0n,
-    }),
-  ]);
+  const nextId = (await publicClient.readContract({
+    address: ESCROW_ADDRESS,
+    abi: ESCROW_ABI,
+    functionName: "nextId",
+  })) as bigint;
 
-  const claimedBy = new Map<string, Address>();
-  for (const log of claimed) {
-    const args = log.args as { id?: bigint; recipient?: Address };
-    if (args.id !== undefined && args.recipient) {
-      claimedBy.set(args.id.toString(), args.recipient);
+  if (nextId === 0n) return [];
+
+  const ids: bigint[] = [];
+  for (let i = 0n; i < nextId; i++) ids.push(i);
+
+  const BATCH = 8;
+  const senderLower = sender.toLowerCase();
+  const mine: Array<{ id: bigint; e: EscrowStruct }> = [];
+
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const chunk = ids.slice(i, i + BATCH);
+    const results = await Promise.all(
+      chunk.map(async (id) => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const e = (await publicClient.readContract({
+              address: ESCROW_ADDRESS,
+              abi: ESCROW_ABI,
+              functionName: "getEscrow",
+              args: [id],
+            })) as EscrowStruct;
+            return { id, e, ok: true as const };
+          } catch {
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+            }
+          }
+        }
+        return { id, ok: false as const };
+      }),
+    );
+    for (const r of results) {
+      if (r.ok && r.e.sender.toLowerCase() === senderLower) {
+        mine.push({ id: r.id, e: r.e });
+      }
     }
-  }
-
-  const revokedIds = new Set<string>();
-  for (const log of revoked) {
-    const args = log.args as { id?: bigint };
-    if (args.id !== undefined) revokedIds.add(args.id.toString());
+    if (i + BATCH < ids.length) {
+      await new Promise((r) => setTimeout(r, 120));
+    }
   }
 
   const now = BigInt(Math.floor(Date.now() / 1000));
-  const claims: SentClaim[] = [];
-  for (const log of deposited) {
-    const args = log.args as {
-      id?: bigint;
-      nftContract?: Address;
-      tokenId?: bigint;
-      expiresAt?: bigint;
-    };
-    if (
-      args.id === undefined ||
-      !args.nftContract ||
-      args.tokenId === undefined ||
-      args.expiresAt === undefined
-    ) {
-      continue;
-    }
-    const key = args.id.toString();
-    let status: ClaimStatus;
-    let recipient: Address | null = null;
-    if (claimedBy.has(key)) {
-      status = "claimed";
-      recipient = claimedBy.get(key)!;
-    } else if (revokedIds.has(key)) {
-      status = "revoked";
-    } else if (args.expiresAt <= now) {
-      status = "expired";
-    } else {
-      status = "pending";
-    }
-    claims.push({
-      id: args.id,
-      nftContract: args.nftContract,
-      tokenId: args.tokenId,
-      expiresAt: args.expiresAt,
-      status,
-      recipient,
-    });
-  }
+  const claims: SentClaim[] = await Promise.all(
+    mine.map(async ({ id, e }) => {
+      let status: ClaimStatus;
+      let recipient: Address | null = null;
+      if (!e.settled) {
+        status = e.expiresAt <= now ? "expired" : "pending";
+      } else {
+        try {
+          const owner = (await publicClient.readContract({
+            address: e.nftContract,
+            abi: OWNER_OF_ABI,
+            functionName: "ownerOf",
+            args: [e.tokenId],
+          })) as Address;
+          if (owner.toLowerCase() === senderLower) {
+            status = "revoked";
+          } else {
+            status = "claimed";
+            recipient = owner;
+          }
+        } catch {
+          status = "claimed";
+        }
+      }
+      return {
+        id,
+        nftContract: e.nftContract,
+        tokenId: e.tokenId,
+        expiresAt: e.expiresAt,
+        status,
+        recipient,
+      };
+    }),
+  );
 
   // Newest first.
   claims.sort((a, b) => (b.id > a.id ? 1 : b.id < a.id ? -1 : 0));
