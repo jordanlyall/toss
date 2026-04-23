@@ -171,35 +171,6 @@ export default function CollectionPage() {
               >
                 Sent
               </Link>
-              {canMint ? (
-                <button
-                  onClick={handleMint}
-                  disabled={isMinting}
-                  aria-label="New Toss"
-                  className="min-h-11 min-w-11 ml-1 rounded-full border border-neutral-800 hover:border-neutral-600 disabled:opacity-50 px-3 text-sm flex items-center gap-1"
-                >
-                  {isMinting ? (
-                    <span className="text-xs">Making...</span>
-                  ) : (
-                    <>
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 14 14"
-                        fill="none"
-                      >
-                        <path
-                          d="M7 2v10M2 7h10"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <span className="text-xs">New</span>
-                    </>
-                  )}
-                </button>
-              ) : null}
               <button
                 onClick={logout}
                 aria-label="Sign out"
@@ -327,14 +298,36 @@ export default function CollectionPage() {
               </>
             )}
 
-            <div className="mt-10 flex items-center justify-center text-xs text-neutral-600">
-              <Link href="/claim" className="hover:text-neutral-300">
-                Have a link? Open
-              </Link>
-            </div>
           </>
         )}
       </div>
+
+      {authenticated &&
+      smartClient &&
+      canMint &&
+      ownedIds.length > 0 &&
+      activeTokenId === null ? (
+        <button
+          onClick={handleMint}
+          disabled={isMinting}
+          aria-label="New Toss"
+          className="fixed right-6 z-20 h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 shadow-lg shadow-blue-950/50 flex items-center justify-center text-white active:scale-95 transition-transform"
+          style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        >
+          {isMinting ? (
+            <span className="text-lg">...</span>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 14 14" fill="none">
+              <path
+                d="M7 2v10M2 7h10"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          )}
+        </button>
+      ) : null}
 
       <SendSheet
         tokenId={activeTokenId}
