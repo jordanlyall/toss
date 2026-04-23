@@ -10,6 +10,7 @@ import { encodeFunctionData, type Address } from "viem";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { loadSentClaims, formatExpiry, type SentClaim } from "@/lib/sent";
 import { NFTPreview } from "@/app/components/NFTPreview";
+import { ProfileMenu } from "@/app/components/ProfileMenu";
 import { haptic } from "@/lib/haptic";
 
 function StatusPill({ status }: { status: SentClaim["status"] }) {
@@ -44,7 +45,7 @@ function shortenAddr(addr: string | null | undefined): string {
 }
 
 export default function SentPage() {
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { ready, authenticated, login } = usePrivy();
   const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
 
@@ -122,22 +123,8 @@ export default function SentPage() {
             <span className="min-h-11 px-3 rounded-full bg-neutral-900 text-white flex items-center">
               Sent
             </span>
-            {authenticated ? (
-              <button
-                onClick={logout}
-                aria-label="Sign out"
-                className="min-h-11 min-w-11 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white flex items-center justify-center"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M10 11l3-3-3-3M13 8H6M6 3H3v10h3"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+            {authenticated && address ? (
+              <ProfileMenu address={address} />
             ) : null}
           </nav>
         </div>

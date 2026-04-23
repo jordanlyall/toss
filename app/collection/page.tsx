@@ -14,6 +14,7 @@ import {
   ESCROW_ADDRESS,
 } from "@/lib/contracts";
 import { NFTPreview } from "@/app/components/NFTPreview";
+import { ProfileMenu } from "@/app/components/ProfileMenu";
 import { SendSheet } from "@/app/collection/SendSheet";
 import { discoverOwnedIds } from "@/lib/owned";
 import { haptic } from "@/lib/haptic";
@@ -24,7 +25,7 @@ type MintStatus =
   | { kind: "error"; message: string };
 
 export default function CollectionPage() {
-  const { ready, authenticated, login, logout } = usePrivy();
+  const { ready, authenticated, login } = usePrivy();
   const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
 
@@ -171,21 +172,7 @@ export default function CollectionPage() {
               >
                 Sent
               </Link>
-              <button
-                onClick={logout}
-                aria-label="Sign out"
-                className="min-h-11 min-w-11 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white flex items-center justify-center"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M10 11l3-3-3-3M13 8H6M6 3H3v10h3"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+              <ProfileMenu address={address} />
             </nav>
           ) : null}
         </div>
