@@ -53,7 +53,7 @@ export default function Landing() {
                     contract={DEMO_NFT_ADDRESS}
                     tokenId={id}
                     size="lg"
-                    className="!max-w-none"
+                    className="!max-w-none !border-neutral-200"
                   />
                 </div>
               ))}
