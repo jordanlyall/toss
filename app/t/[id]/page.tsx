@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ClaimClient from "@/app/claim/ClaimClient";
-import { buildClaimMetadata, resolveSenderDisplayName } from "@/lib/ogMeta";
+import { buildClaimMetadata } from "@/lib/ogMeta";
+import { prefetchClaim } from "@/lib/prefetchClaim";
 
 type PageProps = {
   params: { id: string };
@@ -11,6 +12,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function TossClaimPage({ params }: PageProps) {
-  const senderName = await resolveSenderDisplayName(params.id);
-  return <ClaimClient senderName={senderName} />;
+  const prefetched = await prefetchClaim(params.id);
+  return (
+    <ClaimClient
+      senderName={prefetched?.senderName ?? null}
+      prefetched={prefetched}
+    />
+  );
 }

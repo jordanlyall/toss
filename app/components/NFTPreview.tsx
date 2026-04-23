@@ -11,6 +11,9 @@ type Props = {
   tokenId: bigint;
   size?: "sm" | "md" | "lg";
   className?: string;
+  // If provided, skip the tokenURI fetch and render this image directly.
+  // Used by SSR-prefetched claim pages so the art lands in the initial HTML.
+  initialImageUri?: string | null;
 };
 
 const SIZE_CLASS: Record<NonNullable<Props["size"]>, string> = {
@@ -32,13 +35,23 @@ function extractImage(uri: string): string | null {
   }
 }
 
-export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: Props) {
+export function NFTPreview({
+  contract,
+  tokenId,
+  size = "lg",
+  className = "",
+  initialImageUri,
+}: Props) {
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(
+    initialImageUri ?? null,
+  );
   const [errored, setErrored] = useState(false);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
+    // If we already have the image from SSR, skip the fetch entirely.
+    if (initialImageUri) return;
     if (!publicClient || !contract) return;
     let cancelled = false;
     setImageUri(null);
@@ -85,7 +98,7 @@ export function NFTPreview({ contract, tokenId, size = "lg", className = "" }: P
     return () => {
       cancelled = true;
     };
-  }, [publicClient, contract, tokenId, nonce]);
+  }, [publicClient, contract, tokenId, nonce, initialImageUri]);
 
   const sizeClass = SIZE_CLASS[size];
   const wrap = `${sizeClass} rounded-lg overflow-hidden border border-neutral-800 bg-neutral-950 ${className}`;

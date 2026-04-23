@@ -13,6 +13,7 @@ import { parseEscrowId, parseSecretFragment } from "@/lib/claim";
 import { NFTPreview } from "@/app/components/NFTPreview";
 import { haptic } from "@/lib/haptic";
 import { deriveTraits, PALETTE_INKS } from "@/lib/traits";
+import type { PrefetchedClaim } from "@/lib/prefetchClaim";
 
 type Parsed = { id: bigint; secret: `0x${string}` };
 
@@ -33,9 +34,13 @@ type Status =
 
 type ClaimClientProps = {
   senderName?: string | null;
+  prefetched?: PrefetchedClaim | null;
 };
 
-export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
+export default function ClaimClient({
+  senderName,
+  prefetched,
+}: ClaimClientProps = {}) {
   const { ready, authenticated, login } = usePrivy();
   const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
@@ -46,7 +51,22 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
 
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [fragmentRead, setFragmentRead] = useState(false);
-  const [escrow, setEscrow] = useState<EscrowData | null>(null);
+  // Seed escrow state from SSR prefetch so the art and headline land on
+  // first paint. The client-side effect below still refetches to pick up
+  // any state change (e.g. settled since render); we just aren't waiting
+  // on it before showing the piece.
+  const [escrow, setEscrow] = useState<EscrowData | null>(
+    prefetched
+      ? {
+          sender: prefetched.sender,
+          nftContract: prefetched.nftContract,
+          tokenId: prefetched.tokenId,
+          secretHash: "0x" as `0x${string}`, // not needed on client; placeholder
+          expiresAt: prefetched.expiresAt,
+          settled: prefetched.settled,
+        }
+      : null,
+  );
   const [escrowErr, setEscrowErr] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
@@ -166,13 +186,10 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
     });
   }, [status.kind, escrow]);
 
-  if (!ready || !fragmentRead) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="text-neutral-500 text-sm">Loading...</div>
-      </main>
-    );
-  }
+  // Show the "incomplete link" screen only after we've confirmed the
+  // fragment is bad. Before fragmentRead, fall through to the main flow so
+  // the SSR-prefetched art paints immediately.
+  const linkIsIncomplete = fragmentRead && !parsed;
 
   return (
     <main className="min-h-screen pb-20">
@@ -194,7 +211,7 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
       </header>
 
       <div className="max-w-md mx-auto px-4 pt-8">
-        {!parsed ? (
+        {linkIsIncomplete ? (
           <div className="pt-10 text-center space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight">
               This link is incomplete
@@ -251,6 +268,7 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
                     tokenId={escrow.tokenId}
                     size="lg"
                     className="!max-w-none"
+                    initialImageUri={prefetched?.imageUri ?? null}
                   />
                 </div>
               </div>
@@ -262,7 +280,7 @@ export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
               <div className="aspect-square w-full max-w-[300px] mx-auto rounded-xl border border-neutral-800 bg-neutral-950 animate-pulse" />
             )}
 
-            {status.kind === "claimed" ? (
+            {!ready ? null : status.kind === "claimed" ? (
               <div className="space-y-3">
                 <Link
                   href="/collection"
