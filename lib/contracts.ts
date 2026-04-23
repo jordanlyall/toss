@@ -67,6 +67,19 @@ export const ESCROW_ABI = [
       { name: "expiresAt", type: "uint64", indexed: false },
     ],
   },
+  {
+    type: "event",
+    name: "Claimed",
+    inputs: [
+      { name: "id", type: "uint256", indexed: true },
+      { name: "recipient", type: "address", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "Revoked",
+    inputs: [{ name: "id", type: "uint256", indexed: true }],
+  },
 ] as const;
 
 export const DEMO_NFT_ABI = [
