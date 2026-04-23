@@ -146,10 +146,34 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
     }
   }
 
+  const [copied, setCopied] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      setCanNativeShare(true);
+    }
+  }, []);
+
   function handleCopy(url: string) {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     }
+  }
+
+  async function handleShare(url: string) {
+    const text = "You got an NFT. Claim it here:";
+    if (canNativeShare) {
+      try {
+        await navigator.share({ url, title: "Toss", text });
+        return;
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+      }
+    }
+    handleCopy(url);
   }
 
   if (!mounted) return null;
@@ -247,25 +271,38 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
                   onFocus={(e) => e.currentTarget.select()}
                   className="w-full rounded-lg bg-black border border-neutral-800 px-3 py-3 font-mono text-xs"
                 />
-                <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleShare(phase.url)}
+                  className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium min-h-[52px] flex items-center justify-center gap-2"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M8 2v8M5 5l3-3 3 3M3 10v3a1 1 0 001 1h8a1 1 0 001-1v-3"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  {canNativeShare ? "Share" : "Copy link"}
+                </button>
+                {canNativeShare ? (
                   <button
                     onClick={() => handleCopy(phase.url)}
-                    className="rounded-xl bg-white text-black px-4 py-3.5 text-sm font-medium min-h-[48px]"
+                    className="w-full rounded-xl border border-neutral-800 hover:border-neutral-700 px-4 py-3 text-sm text-neutral-300 hover:text-white min-h-[44px]"
                   >
-                    Copy link
+                    {copied ? "Copied" : "Copy link"}
                   </button>
-                  <a
-                    href={`sms:&body=${encodeURIComponent(
-                      `You got an NFT. Claim it here: ${phase.url}`,
-                    )}`}
-                    className="rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-3.5 text-sm font-medium min-h-[48px] flex items-center justify-center"
-                  >
-                    Share
-                  </a>
-                </div>
+                ) : null}
                 <button
                   onClick={onClose}
-                  className="w-full rounded-xl border border-neutral-800 hover:border-neutral-700 px-4 py-3 text-sm text-neutral-400 hover:text-white"
+                  className="w-full rounded-xl px-4 py-2 text-xs text-neutral-500 hover:text-neutral-300"
                 >
                   Done
                 </button>
