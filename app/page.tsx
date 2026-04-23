@@ -36,7 +36,7 @@ export default function Landing() {
               Jordan Lyall
             </div>
             <h1 className="text-4xl md:text-5xl font-medium tracking-[-0.02em] leading-[1.05]">
-              Small compositions, made to be given.
+              Small compositions, made to be shared.
             </h1>
             <p className="text-base text-neutral-600 leading-relaxed max-w-xl pt-2">
               An open-ended series of on-chain glyph grids. Eight marks, six
