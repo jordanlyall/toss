@@ -10,7 +10,6 @@ import Link from "next/link";
 import {
   DEMO_NFT_ABI,
   DEMO_NFT_ADDRESS,
-  ESCROW_ABI,
   ESCROW_ADDRESS,
 } from "@/lib/contracts";
 import { NFTPreview } from "@/app/components/NFTPreview";
@@ -61,38 +60,6 @@ export default function CollectionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, publicClient]);
 
-  // Pre-approve the escrow for all tokens the moment the wallet is ready.
-  // Fire-and-forget: if it fails, the explicit approval inside SendSheet still
-  // runs. Result: the first Send is a single tap instead of approve + deposit.
-  useEffect(() => {
-    if (!smartClient || !publicClient || !address) return;
-    if (!DEMO_NFT_ADDRESS || !ESCROW_ADDRESS) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const approved = (await publicClient.readContract({
-          address: DEMO_NFT_ADDRESS,
-          abi: DEMO_NFT_ABI,
-          functionName: "isApprovedForAll",
-          args: [address, ESCROW_ADDRESS],
-        })) as boolean;
-        if (approved || cancelled) return;
-        await smartClient.sendTransaction({
-          to: DEMO_NFT_ADDRESS,
-          data: encodeFunctionData({
-            abi: DEMO_NFT_ABI,
-            functionName: "setApprovalForAll",
-            args: [ESCROW_ADDRESS, true],
-          }),
-        });
-      } catch {
-        // Silent — SendSheet will do the same check on demand.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [smartClient, publicClient, address]);
 
   const canMint = useMemo(
     () => !!smartClient && !!DEMO_NFT_ADDRESS,
