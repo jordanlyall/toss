@@ -8,7 +8,7 @@ function shorten(addr: string): string {
 }
 
 export function ProfileMenu({ address }: { address: string }) {
-  const { logout } = usePrivy();
+  const { user, logout } = usePrivy();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -19,6 +19,14 @@ export function ProfileMenu({ address }: { address: string }) {
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, [open]);
+
+  const email = user?.email?.address;
+  const phone = user?.phone?.number;
+  const hasPasskey =
+    user?.linkedAccounts?.some(
+      (a) => (a as { type?: string }).type === "passkey",
+    ) ?? false;
+  const identifier = email ?? phone ?? (hasPasskey ? "Passkey" : null);
 
   return (
     <div className="relative">
@@ -50,12 +58,24 @@ export function ProfileMenu({ address }: { address: string }) {
             role="menu"
             className="absolute right-0 top-12 z-40 min-w-[220px] rounded-xl border border-neutral-800 bg-neutral-950 shadow-xl shadow-black/60 overflow-hidden"
           >
-            <div className="px-4 py-3">
-              <div className="text-[11px] uppercase tracking-wide text-neutral-500">
-                Wallet
-              </div>
-              <div className="font-mono text-xs text-neutral-300 mt-1">
-                {shorten(address)}
+            <div className="px-4 py-3 space-y-2">
+              {identifier ? (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+                    Signed in
+                  </div>
+                  <div className="text-sm text-neutral-200 mt-0.5 truncate">
+                    {identifier}
+                  </div>
+                </div>
+              ) : null}
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+                  Wallet
+                </div>
+                <div className="font-mono text-xs text-neutral-400 mt-0.5">
+                  {shorten(address)}
+                </div>
               </div>
             </div>
             <div className="h-px bg-neutral-900" />
