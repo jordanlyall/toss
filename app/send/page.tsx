@@ -15,6 +15,7 @@ import {
 } from "@/lib/contracts";
 import { NFTPreview } from "@/app/components/NFTPreview";
 import { SendSheet } from "@/app/send/SendSheet";
+import { discoverOwnedIds } from "@/lib/owned";
 
 type MintStatus =
   | { kind: "idle" }
@@ -40,19 +41,12 @@ export default function SendPage() {
 
   async function refreshOwned(addr: Address) {
     if (!publicClient || !DEMO_NFT_ADDRESS) return;
-    const filtered: bigint[] = [];
-    for (const id of ownedIds) {
-      try {
-        const owner = (await publicClient.readContract({
-          address: DEMO_NFT_ADDRESS,
-          abi: DEMO_NFT_ABI,
-          functionName: "ownerOf",
-          args: [id],
-        })) as Address;
-        if (owner.toLowerCase() === addr.toLowerCase()) filtered.push(id);
-      } catch {}
+    try {
+      const owned = await discoverOwnedIds(publicClient, addr);
+      setOwnedIds(owned);
+    } catch {
+      // Transient RPC failure — keep whatever's currently on screen.
     }
-    setOwnedIds(filtered);
   }
 
   async function refreshBalance(addr: Address) {
