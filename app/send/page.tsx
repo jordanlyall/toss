@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { usePublicClient } from "wagmi";
-import {
-  encodeFunctionData,
-  decodeEventLog,
-  formatEther,
-  type Address,
-} from "viem";
+import { encodeFunctionData, formatEther, type Address } from "viem";
 import { baseSepolia } from "wagmi/chains";
 import Link from "next/link";
 import {
@@ -18,25 +13,17 @@ import {
   ESCROW_ABI,
   ESCROW_ADDRESS,
 } from "@/lib/contracts";
-import {
-  buildClaimUrl,
-  defaultExpiry,
-  generateSecret,
-  hashSecret,
-} from "@/lib/claim";
 import { NFTPreview } from "@/app/components/NFTPreview";
+import { SendSheet } from "@/app/send/SendSheet";
 
-type Status =
+type MintStatus =
   | { kind: "idle" }
   | { kind: "minting" }
-  | { kind: "minted"; tokenId: bigint }
-  | { kind: "sending"; tokenId: bigint; step: string }
-  | { kind: "sent"; tokenId: bigint; escrowId: bigint; url: string }
   | { kind: "error"; message: string };
 
 function shorten(addr: string | undefined): string {
   if (!addr) return "";
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  return `${addr.slice(0, 4)}..${addr.slice(-4)}`;
 }
 
 export default function SendPage() {
@@ -46,9 +33,10 @@ export default function SendPage() {
 
   const address = smartClient?.account?.address as Address | undefined;
 
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [mint, setMint] = useState<MintStatus>({ kind: "idle" });
   const [ownedIds, setOwnedIds] = useState<bigint[]>([]);
   const [balance, setBalance] = useState<bigint | null>(null);
+  const [activeTokenId, setActiveTokenId] = useState<bigint | null>(null);
 
   async function refreshOwned(addr: Address) {
     if (!publicClient || !DEMO_NFT_ADDRESS) return;
@@ -82,14 +70,14 @@ export default function SendPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
-  const canAct = useMemo(
-    () => !!smartClient && !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS,
+  const canMint = useMemo(
+    () => !!smartClient && !!DEMO_NFT_ADDRESS,
     [smartClient],
   );
 
   async function handleMint() {
     if (!smartClient || !publicClient || !address) return;
-    setStatus({ kind: "minting" });
+    setMint({ kind: "minting" });
     try {
       const hash = await smartClient.sendTransaction({
         to: DEMO_NFT_ADDRESS,
@@ -115,83 +103,11 @@ export default function SendPage() {
       }
       if (tokenId === null) throw new Error("Could not find tokenId in logs");
       setOwnedIds((prev) => Array.from(new Set([...prev, tokenId!])));
-      setStatus({ kind: "minted", tokenId });
+      setMint({ kind: "idle" });
     } catch (err: any) {
-      setStatus({
+      setMint({
         kind: "error",
         message: err?.shortMessage || err?.message || "Mint failed",
-      });
-    }
-  }
-
-  async function handleSend(tokenId: bigint) {
-    if (!smartClient || !publicClient || !address) return;
-    setStatus({ kind: "sending", tokenId, step: "Checking approval" });
-    try {
-      const approved = (await publicClient.readContract({
-        address: DEMO_NFT_ADDRESS,
-        abi: DEMO_NFT_ABI,
-        functionName: "isApprovedForAll",
-        args: [address, ESCROW_ADDRESS],
-      })) as boolean;
-
-      if (!approved) {
-        setStatus({ kind: "sending", tokenId, step: "Approving escrow" });
-        const approveHash = await smartClient.sendTransaction({
-          to: DEMO_NFT_ADDRESS,
-          data: encodeFunctionData({
-            abi: DEMO_NFT_ABI,
-            functionName: "setApprovalForAll",
-            args: [ESCROW_ADDRESS, true],
-          }),
-        });
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
-      }
-
-      setStatus({ kind: "sending", tokenId, step: "Creating link" });
-      const secret = generateSecret();
-      const secretHash = hashSecret(secret);
-      const expiresAt = defaultExpiry();
-
-      const depositHash = await smartClient.sendTransaction({
-        to: ESCROW_ADDRESS,
-        data: encodeFunctionData({
-          abi: ESCROW_ABI,
-          functionName: "deposit",
-          args: [DEMO_NFT_ADDRESS, tokenId, secretHash, expiresAt],
-        }),
-      });
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: depositHash,
-      });
-
-      let escrowId: bigint | null = null;
-      for (const log of receipt.logs) {
-        if (log.address.toLowerCase() !== ESCROW_ADDRESS.toLowerCase())
-          continue;
-        try {
-          const decoded = decodeEventLog({
-            abi: ESCROW_ABI,
-            data: log.data,
-            topics: log.topics,
-          });
-          if (decoded.eventName === "Deposited") {
-            escrowId = (decoded.args as any).id as bigint;
-            break;
-          }
-        } catch {}
-      }
-      if (escrowId === null) throw new Error("Deposited event not found");
-
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : "https://toss.app";
-      const url = buildClaimUrl(origin, escrowId, secret);
-      setOwnedIds((prev) => prev.filter((id) => id !== tokenId));
-      setStatus({ kind: "sent", tokenId, escrowId, url });
-    } catch (err: any) {
-      setStatus({
-        kind: "error",
-        message: err?.shortMessage || err?.message || "Send failed",
       });
     }
   }
@@ -204,156 +120,197 @@ export default function SendPage() {
     );
   }
 
+  const isMinting = mint.kind === "minting";
+  const contractsReady = !!ESCROW_ADDRESS && !!DEMO_NFT_ADDRESS;
+
   return (
-    <main className="min-h-screen px-6 py-10 max-w-2xl mx-auto">
-      <nav className="flex items-center justify-between mb-10">
-        <Link href="/" className="text-sm text-neutral-400 hover:text-white">
-          Toss
-        </Link>
-        <div className="flex items-center gap-3 text-sm">
-          <Link href="/claim" className="text-neutral-400 hover:text-white">
-            Claim
+    <main className="min-h-screen pb-20">
+      {/* Top bar */}
+      <header className="sticky top-0 z-20 bg-black/80 backdrop-blur border-b border-neutral-900">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-base font-semibold tracking-tight text-white"
+          >
+            Toss
           </Link>
-          {authenticated ? (
-            <button
-              onClick={logout}
-              className="text-neutral-400 hover:text-white"
-            >
-              Sign out
-            </button>
-          ) : null}
-        </div>
-      </nav>
-
-      <h1 className="text-3xl font-semibold tracking-tight mb-2">Send an NFT</h1>
-      <p className="text-neutral-400 mb-8">
-        Mint a demo token, then generate a claim link you can text to anyone. No
-        gas.
-      </p>
-
-      {!ESCROW_ADDRESS || !DEMO_NFT_ADDRESS ? (
-        <div className="rounded-lg border border-amber-900 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
-          Contracts not deployed. Run{" "}
-          <code className="font-mono">npm run deploy:sepolia</code> first.
-        </div>
-      ) : !authenticated ? (
-        <button
-          onClick={login}
-          className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium"
-        >
-          Sign in to send
-        </button>
-      ) : !smartClient ? (
-        <div className="text-sm text-neutral-400">
-          Preparing smart wallet...
-        </div>
-      ) : (
-        <div className="space-y-8">
-          <section className="rounded-lg border border-neutral-800 p-4">
-            <div className="flex items-center justify-between text-sm">
-              <div>
-                <div className="text-neutral-400">Smart wallet</div>
-                <div className="font-mono">{shorten(address)}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-neutral-400">Balance</div>
-                <div className="font-mono">
-                  {balance !== null
-                    ? `${Number(formatEther(balance)).toFixed(4)} ETH`
-                    : "..."}
+          {authenticated && address ? (
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:block text-right leading-tight">
+                <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+                  Wallet
+                </div>
+                <div className="font-mono text-xs text-neutral-300">
+                  {shorten(address)}
                 </div>
               </div>
-            </div>
-          </section>
-
-          <section>
-            <button
-              onClick={handleMint}
-              disabled={!canAct || status.kind === "minting"}
-              className="w-full rounded-lg border border-neutral-700 hover:border-neutral-500 disabled:opacity-50 px-5 py-4 text-base"
-            >
-              {status.kind === "minting" ? "Minting..." : "Mint a demo NFT"}
-            </button>
-          </section>
-
-          {ownedIds.length > 0 ? (
-            <section>
-              <h2 className="text-sm text-neutral-400 mb-3">Your demo NFTs</h2>
-              <ul className="space-y-2">
-                {ownedIds.map((id) => {
-                  const isSending =
-                    status.kind === "sending" && status.tokenId === id;
-                  return (
-                    <li
-                      key={id.toString()}
-                      className="flex items-center gap-4 rounded-lg border border-neutral-800 px-4 py-3"
-                    >
-                      <NFTPreview
-                        contract={DEMO_NFT_ADDRESS}
-                        tokenId={id}
-                        size="md"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-mono text-sm">
-                          Token #{id.toString()}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleSend(id)}
-                        disabled={!canAct || isSending}
-                        className="rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 text-sm font-medium"
-                      >
-                        {isSending ? status.step : "Send"}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ) : null}
-
-          {status.kind === "sent" ? (
-            <section className="rounded-lg border border-emerald-900 bg-emerald-950/30 p-4 space-y-3">
-              <div className="text-sm text-emerald-200">
-                Ready to share. Token #{status.tokenId.toString()} is in escrow
-                as #{status.escrowId.toString()}.
-              </div>
-              <input
-                readOnly
-                value={status.url}
-                onFocus={(e) => e.currentTarget.select()}
-                className="w-full rounded-md bg-black border border-neutral-800 px-3 py-2 font-mono text-xs"
-              />
-              <div className="flex gap-2">
+              {canMint ? (
                 <button
-                  onClick={() => navigator.clipboard.writeText(status.url)}
-                  className="rounded-md bg-white text-black px-3 py-1.5 text-sm font-medium"
+                  onClick={handleMint}
+                  disabled={isMinting}
+                  aria-label="Mint NFT"
+                  className="min-h-11 min-w-11 rounded-full border border-neutral-800 hover:border-neutral-600 disabled:opacity-50 px-3 text-sm flex items-center gap-1"
                 >
-                  Copy link
+                  {isMinting ? (
+                    <span className="text-xs">Minting...</span>
+                  ) : (
+                    <>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                      >
+                        <path
+                          d="M7 2v10M2 7h10"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span className="text-xs">Mint</span>
+                    </>
+                  )}
                 </button>
-                <a
-                  href={`sms:&body=${encodeURIComponent(`You got an NFT. Claim it here: ${status.url}`)}`}
-                  className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm"
-                >
-                  Share via iMessage
-                </a>
-              </div>
-            </section>
-          ) : null}
-
-          {status.kind === "minted" ? (
-            <section className="text-sm text-neutral-400">
-              Minted token #{status.tokenId.toString()}. Send it below.
-            </section>
-          ) : null}
-
-          {status.kind === "error" ? (
-            <section className="rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-              {status.message}
-            </section>
+              ) : null}
+              <button
+                onClick={logout}
+                aria-label="Sign out"
+                className="min-h-11 min-w-11 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white flex items-center justify-center"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 11l3-3-3-3M13 8H6M6 3H3v10h3"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
           ) : null}
         </div>
-      )}
+      </header>
+
+      <div className="max-w-3xl mx-auto px-4 pt-6">
+        {!contractsReady ? (
+          <div className="rounded-lg border border-amber-900 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+            Contracts not deployed. Run{" "}
+            <code className="font-mono">npm run deploy:sepolia</code> first.
+          </div>
+        ) : !authenticated ? (
+          <div className="pt-16 pb-8 text-center space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Send an NFT by link
+              </h1>
+              <p className="text-neutral-400 text-sm max-w-sm mx-auto">
+                Sign in, mint a demo token, then text a claim link to anyone.
+                No gas.
+              </p>
+            </div>
+            <button
+              onClick={login}
+              className="w-full max-w-xs mx-auto rounded-xl bg-blue-600 hover:bg-blue-500 px-5 py-4 text-base font-medium min-h-[52px]"
+            >
+              Sign in to send
+            </button>
+          </div>
+        ) : !smartClient ? (
+          <div className="pt-16 text-center text-sm text-neutral-400">
+            Preparing smart wallet...
+          </div>
+        ) : (
+          <>
+            {/* Balance chip — compact, below header */}
+            <div className="flex items-center justify-between text-xs text-neutral-500 mb-4">
+              <span>Your NFTs</span>
+              <span className="font-mono">
+                {balance !== null
+                  ? `${Number(formatEther(balance)).toFixed(4)} ETH`
+                  : "..."}
+              </span>
+            </div>
+
+            {ownedIds.length === 0 ? (
+              <div className="pt-10 pb-8 text-center space-y-5">
+                <div className="space-y-1">
+                  <div className="text-neutral-300 text-base">
+                    No NFTs yet
+                  </div>
+                  <div className="text-neutral-500 text-sm">
+                    Mint a demo token to get started.
+                  </div>
+                </div>
+                <button
+                  onClick={handleMint}
+                  disabled={!canMint || isMinting}
+                  className="w-full max-w-xs mx-auto rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-5 py-4 text-base font-medium min-h-[52px]"
+                >
+                  {isMinting ? "Minting..." : "Mint your first NFT"}
+                </button>
+                {mint.kind === "error" ? (
+                  <div className="max-w-sm mx-auto rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                    {mint.message}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {ownedIds.map((id) => (
+                    <li key={id.toString()}>
+                      <button
+                        onClick={() => setActiveTokenId(id)}
+                        className="group w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl"
+                        aria-label={`Send token #${id.toString()}`}
+                      >
+                        <div className="relative">
+                          <NFTPreview
+                            contract={DEMO_NFT_ADDRESS}
+                            tokenId={id}
+                            size="lg"
+                            className="!max-w-none transition-transform group-active:scale-[0.98]"
+                          />
+                        </div>
+                        <div className="mt-2 flex items-center justify-between px-0.5">
+                          <span className="font-mono text-xs text-neutral-400">
+                            #{id.toString()}
+                          </span>
+                          <span className="text-[11px] text-neutral-500 group-hover:text-neutral-300">
+                            Tap to send
+                          </span>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                {mint.kind === "error" ? (
+                  <div className="mt-4 rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                    {mint.message}
+                  </div>
+                ) : null}
+              </>
+            )}
+
+            <div className="mt-10 text-center text-xs text-neutral-600">
+              <Link href="/claim" className="hover:text-neutral-300">
+                Have a link? Open Claim
+              </Link>
+            </div>
+          </>
+        )}
+      </div>
+
+      <SendSheet
+        tokenId={activeTokenId}
+        onClose={() => setActiveTokenId(null)}
+        onSent={(id) =>
+          setOwnedIds((prev) => prev.filter((t) => t !== id))
+        }
+      />
     </main>
   );
 }
