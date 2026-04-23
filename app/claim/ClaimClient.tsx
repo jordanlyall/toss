@@ -30,7 +30,11 @@ type Status =
   | { kind: "claimed" }
   | { kind: "error"; message: string };
 
-export default function ClaimClient() {
+type ClaimClientProps = {
+  senderName?: string | null;
+};
+
+export default function ClaimClient({ senderName }: ClaimClientProps = {}) {
   const { ready, authenticated, login } = usePrivy();
   const { client: smartClient } = useSmartWallets();
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
@@ -162,6 +166,11 @@ export default function ClaimClient() {
                       ? "Link expired"
                       : "You got a Field Note"}
               </h1>
+              {senderName && !settled && !expired ? (
+                <p className="text-neutral-300 text-sm">
+                  From {senderName}
+                </p>
+              ) : null}
               {status.kind === "claimed" ? (
                 <p className="text-neutral-400 text-sm">
                   Saved to your collection.

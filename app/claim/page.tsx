@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ClaimClient from "./ClaimClient";
-import { buildClaimMetadata } from "@/lib/ogMeta";
+import { buildClaimMetadata, resolveSenderDisplayName } from "@/lib/ogMeta";
 
 type PageProps = {
   searchParams: { id?: string };
@@ -10,6 +10,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   return buildClaimMetadata(searchParams.id);
 }
 
-export default function ClaimPage() {
-  return <ClaimClient />;
+export default async function ClaimPage({ searchParams }: PageProps) {
+  const senderName = await resolveSenderDisplayName(searchParams.id);
+  return <ClaimClient senderName={senderName} />;
 }

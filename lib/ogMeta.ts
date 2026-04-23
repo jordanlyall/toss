@@ -38,6 +38,24 @@ async function resolveSender(id: bigint): Promise<Address | null> {
   }
 }
 
+// Server-side: resolve the sender's display name for a given escrow id. Used
+// by both OG metadata generation and by the claim page to warm the body
+// with the sender's name. Returns null on any miss (invalid id, no sender
+// resolvable, no displayName set, Privy lookup failure).
+export async function resolveSenderDisplayName(
+  idParam: string | undefined,
+): Promise<string | null> {
+  if (!idParam) return null;
+  try {
+    const id = BigInt(idParam);
+    const sender = await resolveSender(id);
+    if (!sender) return null;
+    return await getDisplayNameForAddress(sender);
+  } catch {
+    return null;
+  }
+}
+
 export async function buildClaimMetadata(
   idParam: string | undefined,
 ): Promise<Metadata> {
@@ -46,19 +64,8 @@ export async function buildClaimMetadata(
     : "/api/og";
 
   let title = DEFAULT_TITLE;
-
-  if (idParam) {
-    try {
-      const id = BigInt(idParam);
-      const sender = await resolveSender(id);
-      if (sender) {
-        const name = await getDisplayNameForAddress(sender);
-        if (name) title = `${name} sent you a Field Note`;
-      }
-    } catch {
-      // Invalid id -> keep default title.
-    }
-  }
+  const senderName = await resolveSenderDisplayName(idParam);
+  if (senderName) title = `${senderName} sent you a Field Note`;
 
   return {
     title,
