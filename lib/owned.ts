@@ -28,29 +28,38 @@ export async function discoverOwnedIds(
   const ids: bigint[] = [];
   for (let i = 0n; i < nextId; i++) ids.push(i);
 
-  const BATCH = 20;
+  const BATCH = 8;
   const owned: bigint[] = [];
   for (let i = 0; i < ids.length; i += BATCH) {
     const chunk = ids.slice(i, i + BATCH);
     const results = await Promise.all(
-      chunk.map((id) =>
-        publicClient
-          .readContract({
-            address: DEMO_NFT_ADDRESS,
-            abi: DEMO_NFT_ABI,
-            functionName: "ownerOf",
-            args: [id],
-          })
-          .then(
-            (owner) => ({ id, owner: owner as Address, ok: true }) as const,
-            () => ({ id, ok: false }) as const,
-          ),
-      ),
+      chunk.map(async (id) => {
+        // Small per-token retry — the public RPC 429s under burst load.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const owner = (await publicClient.readContract({
+              address: DEMO_NFT_ADDRESS,
+              abi: DEMO_NFT_ABI,
+              functionName: "ownerOf",
+              args: [id],
+            })) as Address;
+            return { id, owner, ok: true as const };
+          } catch {
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+            }
+          }
+        }
+        return { id, ok: false as const };
+      }),
     );
     for (const r of results) {
       if (r.ok && r.owner.toLowerCase() === address.toLowerCase()) {
         owned.push(r.id);
       }
+    }
+    if (i + BATCH < ids.length) {
+      await new Promise((r) => setTimeout(r, 120));
     }
   }
 

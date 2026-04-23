@@ -36,16 +36,26 @@ export default function SendPage() {
 
   const [mint, setMint] = useState<MintStatus>({ kind: "idle" });
   const [ownedIds, setOwnedIds] = useState<bigint[]>([]);
+  const [ownedLoaded, setOwnedLoaded] = useState(false);
   const [balance, setBalance] = useState<bigint | null>(null);
   const [activeTokenId, setActiveTokenId] = useState<bigint | null>(null);
 
   async function refreshOwned(addr: Address) {
-    if (!publicClient || !DEMO_NFT_ADDRESS) return;
+    if (!publicClient || !DEMO_NFT_ADDRESS) {
+      console.warn("refreshOwned skipped", {
+        hasPublicClient: !!publicClient,
+        hasContract: !!DEMO_NFT_ADDRESS,
+      });
+      return;
+    }
     try {
       const owned = await discoverOwnedIds(publicClient, addr);
+      console.info("refreshOwned", { addr, owned: owned.map(String) });
       setOwnedIds(owned);
-    } catch {
-      // Transient RPC failure — keep whatever's currently on screen.
+      setOwnedLoaded(true);
+    } catch (err) {
+      console.error("refreshOwned failed", err);
+      setOwnedLoaded(true);
     }
   }
 
@@ -58,11 +68,11 @@ export default function SendPage() {
   }
 
   useEffect(() => {
-    if (!address) return;
+    if (!address || !publicClient) return;
     void refreshOwned(address);
     void refreshBalance(address);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+  }, [address, publicClient]);
 
   const canMint = useMemo(
     () => !!smartClient && !!DEMO_NFT_ADDRESS,
@@ -227,7 +237,11 @@ export default function SendPage() {
               </span>
             </div>
 
-            {ownedIds.length === 0 ? (
+            {!ownedLoaded ? (
+              <div className="pt-10 pb-8 text-center text-sm text-neutral-500">
+                Loading your NFTs...
+              </div>
+            ) : ownedIds.length === 0 ? (
               <div className="pt-10 pb-8 text-center space-y-5">
                 <div className="space-y-1">
                   <div className="text-neutral-300 text-base">
