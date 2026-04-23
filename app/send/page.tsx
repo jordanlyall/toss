@@ -23,11 +23,6 @@ type MintStatus =
   | { kind: "minting" }
   | { kind: "error"; message: string };
 
-function shorten(addr: string | undefined): string {
-  if (!addr) return "";
-  return `${addr.slice(0, 4)}..${addr.slice(-4)}`;
-}
-
 export default function SendPage() {
   const { ready, authenticated, login, logout } = usePrivy();
   const { client: smartClient } = useSmartWallets();
@@ -158,7 +153,7 @@ export default function SendPage() {
     <main className="min-h-screen pb-20">
       {/* Top bar */}
       <header className="sticky top-0 z-20 bg-black/80 backdrop-blur border-b border-neutral-900">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <Link
             href="/"
             className="text-base font-semibold tracking-tight text-white"
@@ -166,21 +161,22 @@ export default function SendPage() {
             Toss
           </Link>
           {authenticated && address ? (
-            <div className="flex items-center gap-2">
-              <div className="hidden sm:block text-right leading-tight">
-                <div className="text-[11px] uppercase tracking-wide text-neutral-500">
-                  Wallet
-                </div>
-                <div className="font-mono text-xs text-neutral-300">
-                  {shorten(address)}
-                </div>
-              </div>
+            <nav className="flex items-center gap-1 text-sm">
+              <span className="min-h-11 px-3 rounded-full bg-neutral-900 text-white flex items-center">
+                Send
+              </span>
+              <Link
+                href="/sent"
+                className="min-h-11 px-3 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white flex items-center"
+              >
+                Sent
+              </Link>
               {canMint ? (
                 <button
                   onClick={handleMint}
                   disabled={isMinting}
                   aria-label="New Toss"
-                  className="min-h-11 min-w-11 rounded-full border border-neutral-800 hover:border-neutral-600 disabled:opacity-50 px-3 text-sm flex items-center gap-1"
+                  className="min-h-11 min-w-11 ml-1 rounded-full border border-neutral-800 hover:border-neutral-600 disabled:opacity-50 px-3 text-sm flex items-center gap-1"
                 >
                   {isMinting ? (
                     <span className="text-xs">Making...</span>
@@ -219,7 +215,7 @@ export default function SendPage() {
                   />
                 </svg>
               </button>
-            </div>
+            </nav>
           ) : null}
         </div>
       </header>
