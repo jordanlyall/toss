@@ -264,12 +264,9 @@ export default function CollectionPage() {
                             className="!max-w-none transition-transform duration-150 group-active:scale-[0.96]"
                           />
                         </div>
-                        <div className="mt-2 flex items-center justify-between px-0.5">
+                        <div className="mt-2 px-0.5">
                           <span className="text-xs text-neutral-400">
                             Toss #{id.toString()}
-                          </span>
-                          <span className="text-[11px] text-neutral-500 group-hover:text-neutral-300">
-                            Tap to send
                           </span>
                         </div>
                       </button>
