@@ -66,6 +66,19 @@ export default function SentPage() {
     void refresh();
   }, [refresh]);
 
+  // Auto-refresh whenever the tab regains focus, so returning from iMessage
+  // (or wherever the recipient opened the link) surfaces the 'Opened' state
+  // without a manual Refresh tap.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
+
   async function handleRevoke(id: bigint) {
     if (!smartClient || !publicClient) return;
     haptic.press();

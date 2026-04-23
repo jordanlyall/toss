@@ -1,18 +1,68 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { DEMO_NFT_ADDRESS } from "@/lib/contracts";
+import { usePublicClient } from "wagmi";
+import { baseSepolia } from "wagmi/chains";
+import { DEMO_NFT_ABI, DEMO_NFT_ADDRESS } from "@/lib/contracts";
 import { NFTPreview } from "@/app/components/NFTPreview";
+import { deriveTraits, type PaletteName } from "@/lib/traits";
 
 const REPO_URL = "https://github.com/jordanlyall/toss";
 
-// Six tokenIds chosen to sample the palette variety. These render live from
-// the on-chain contract; if a tokenId hasn't been minted the preview falls
-// back gracefully.
-const PREVIEW_IDS: bigint[] = [0n, 1n, 2n, 3n, 4n, 5n];
+// Six IDs that sample the palette variety. Computed client-side from the
+// contract's nextId — we pick the first minted token we see for each palette
+// so visitors get a grid that spans Paper / Sun / Ocean / Forest / Noir / Neon
+// instead of six neighboring IDs that may cluster.
+const PALETTES: PaletteName[] = [
+  "Paper",
+  "Sun",
+  "Ocean",
+  "Forest",
+  "Noir",
+  "Neon",
+];
+
+// Fallback while nextId is loading. These specific low IDs are known-minted
+// on the live contract and happen to hit multiple palettes; if the client
+// never finishes loading nextId we still render something reasonable.
+const FALLBACK_IDS: bigint[] = [0n, 1n, 2n, 3n, 4n, 5n];
 
 export default function Landing() {
   const contractsReady = !!DEMO_NFT_ADDRESS;
+  const publicClient = usePublicClient({ chainId: baseSepolia.id });
+  const [previewIds, setPreviewIds] = useState<bigint[]>(FALLBACK_IDS);
+
+  useEffect(() => {
+    if (!publicClient || !DEMO_NFT_ADDRESS) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const nextId = (await publicClient.readContract({
+          address: DEMO_NFT_ADDRESS,
+          abi: DEMO_NFT_ABI,
+          functionName: "nextId",
+        })) as bigint;
+        if (cancelled || nextId === 0n) return;
+        const seen = new Map<PaletteName, bigint>();
+        for (let i = 0n; i < nextId && seen.size < PALETTES.length; i++) {
+          const p = deriveTraits(i).palette;
+          if (!seen.has(p)) seen.set(p, i);
+        }
+        const curated = PALETTES.map((p) => seen.get(p)).filter(
+          (id): id is bigint => id !== undefined,
+        );
+        if (!cancelled && curated.length >= 3) {
+          setPreviewIds(curated);
+        }
+      } catch {
+        // Fallback IDs stay. Silent — landing page should never error.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publicClient]);
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] flex flex-col">
@@ -47,7 +97,7 @@ export default function Landing() {
 
           {contractsReady ? (
             <div className="mt-10 grid grid-cols-3 md:grid-cols-6 gap-3 max-w-3xl">
-              {PREVIEW_IDS.map((id) => (
+              {previewIds.map((id) => (
                 <div key={id.toString()} className="aspect-square">
                   <NFTPreview
                     contract={DEMO_NFT_ADDRESS}
