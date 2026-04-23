@@ -9,6 +9,7 @@ import { encodeFunctionData } from "viem";
 import Link from "next/link";
 import { ESCROW_ABI, ESCROW_ADDRESS } from "@/lib/contracts";
 import { parseClaimFragment } from "@/lib/claim";
+import { NFTPreview } from "@/app/components/NFTPreview";
 
 type Parsed = { id: bigint; secret: `0x${string}` };
 
@@ -140,6 +141,16 @@ export default function ClaimPage() {
           <h1 className="text-3xl font-semibold tracking-tight mb-6">
             You got an NFT
           </h1>
+
+          {escrow ? (
+            <div className="flex justify-center mb-6">
+              <NFTPreview
+                contract={escrow.nftContract}
+                tokenId={escrow.tokenId}
+                size="lg"
+              />
+            </div>
+          ) : null}
 
           <section className="rounded-lg border border-neutral-800 p-4 mb-6 space-y-2 text-sm">
             {escrow ? (

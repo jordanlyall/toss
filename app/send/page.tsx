@@ -24,6 +24,7 @@ import {
   generateSecret,
   hashSecret,
 } from "@/lib/claim";
+import { NFTPreview } from "@/app/components/NFTPreview";
 
 type Status =
   | { kind: "idle" }
@@ -285,10 +286,17 @@ export default function SendPage() {
                   return (
                     <li
                       key={id.toString()}
-                      className="flex items-center justify-between rounded-lg border border-neutral-800 px-4 py-3"
+                      className="flex items-center gap-4 rounded-lg border border-neutral-800 px-4 py-3"
                     >
-                      <div className="font-mono text-sm">
-                        Token #{id.toString()}
+                      <NFTPreview
+                        contract={DEMO_NFT_ADDRESS}
+                        tokenId={id}
+                        size="md"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-sm">
+                          Token #{id.toString()}
+                        </div>
                       </div>
                       <button
                         onClick={() => handleSend(id)}
