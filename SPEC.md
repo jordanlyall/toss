@@ -44,7 +44,7 @@ toss/
 ## Architecture notes (read before coding)
 
 ### Secret lives in URL fragment, never in query string
-Claim URL format: `https://toss.app/claim#id=42&s=0xabc...` (see `lib/claim.ts`). The `#` fragment is never sent to the server. Do not move it to a query param or localStorage.
+Claim URL format: `https://toss.lol/t/42#s=0xabc...` (see `lib/claim.ts`). The `#` fragment is never sent to the server. Do not move it to a query param or localStorage.
 
 ### Front-running is a known limitation, not a bug
 `claim(id, secret)` is front-runnable on mainnet. Noted in contract comments. For this prototype, ship as-is. Do NOT add ECDSA signing unless asked — it adds complexity the demo doesn't need.

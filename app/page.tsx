@@ -136,7 +136,7 @@ export default function Landing() {
       const origin =
         typeof window !== "undefined"
           ? window.location.origin
-          : "https://toss.app";
+          : "https://toss.lol";
       const url = buildClaimUrl(origin, escrowId, secret);
       setState({ step: "sent", tokenId, escrowId, url, secret });
     } catch (err: any) {
@@ -481,7 +481,7 @@ function Thread({
         >
           <div className="text-[13px]">You got a Toss. Open it here:</div>
           <div className="text-[11px] opacity-80 break-all mt-1">
-            {url ? shortenUrl(url) : "toss.app/claim#..."}
+            {url ? shortenUrl(url) : "toss.lol/t/42#s=..."}
           </div>
           {claimed ? (
             <div className="text-[10px] opacity-80 mt-1">Read</div>

@@ -139,7 +139,7 @@ export function SendSheet({ tokenId, onClose, onSent }: Props) {
       const origin =
         typeof window !== "undefined"
           ? window.location.origin
-          : "https://toss.app";
+          : "https://toss.lol";
       const url = buildClaimUrl(origin, escrowId, secret);
       onSent(tokenId);
       setPhase({ kind: "ready", escrowId, url });
